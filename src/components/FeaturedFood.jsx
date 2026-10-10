@@ -1,9 +1,9 @@
 import { featuredItems } from '../data/featured';
-import { photos } from '../data/photos';
+import { sectionPhotos } from '../data/photos';
 import Placeholder from './Placeholder';
 
 export default function FeaturedFood() {
-  const { featured } = photos;
+  const { featured } = sectionPhotos;
   return (
     <section className="section featured" aria-labelledby="featured-title">
       <div className="container featured-layout">

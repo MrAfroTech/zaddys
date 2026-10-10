@@ -26,9 +26,10 @@ Routes: `/` (homepage) and `/menu`.
 
 ## Open items (search the code for `TODO(zaddys)`)
 
-- **Photos:** upload to `public/images/`, then reference them in
-  `src/data/photos.js` and `src/data/slides.js`. Marked placeholders show
-  until then.
+- **Photos:** the uploaded photos are in use (`src/data/photos.js`). They're
+  small (about 200–370px wide), so the hero shows them framed over a
+  soft-focus backdrop instead of full-bleed. Larger originals (1500px+ wide)
+  would let them go bigger.
 - **Logo:** add the official file at `public/images/logo.png` and set
   `LOGO_SRC` in `src/components/BrandMark.jsx`. Never recolor it.
 - **Hours:** not supplied yet — the site says "Call for hours" until

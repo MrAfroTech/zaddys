@@ -11,8 +11,12 @@ function prefersReducedMotion() {
  * Reusable crossfading slideshow driven by a slides array
  * ({ src, alt, placeholder, label }). Content passed as children is layered
  * above a scrim so it stays readable over any image.
+ *
+ * `framed` is for small photos that would blur if stretched full-screen: the
+ * background becomes a soft-focus copy and the photo itself shows sharp in a
+ * frame beside the text.
  */
-export default function HeroSlideshow({ slides, children }) {
+export default function HeroSlideshow({ slides, children, framed = false }) {
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
 
@@ -23,19 +27,34 @@ export default function HeroSlideshow({ slides, children }) {
   }, [slides.length, paused]);
 
   return (
-    <section className="hero" aria-roledescription="carousel" aria-label="Zaddys">
-      <div className="hero-slides">
+    <section className={`hero${framed ? ' hero-framed' : ''}`} aria-roledescription="carousel" aria-label="Zaddys">
+      <div className="hero-slides" aria-hidden={framed || undefined}>
         {slides.map((slide, i) => (
           <div key={slide.src || slide.label} className={`hero-slide${i === index ? ' is-active' : ''}`} aria-hidden={i !== index}>
             {slide.placeholder || !slide.src ? (
               <Placeholder label={slide.label || slide.alt} className="placeholder-hero" />
             ) : (
-              <img src={slide.src} alt={slide.alt} loading={i === 0 ? 'eager' : 'lazy'} fetchpriority={i === 0 ? 'high' : undefined} />
+              <img src={slide.src} alt={framed ? '' : slide.alt} loading={i === 0 ? 'eager' : 'lazy'} fetchpriority={i === 0 ? 'high' : undefined} />
             )}
           </div>
         ))}
       </div>
       <div className="hero-scrim" aria-hidden="true" />
+      {framed && (
+        <div className="hero-frame-wrap">
+          <div className="hero-frame">
+            {slides.filter((slide) => slide.src).map((slide, i) => (
+              <img
+                key={slide.src}
+                src={slide.src}
+                alt={slide.alt}
+                className={i === index ? 'is-active' : undefined}
+                aria-hidden={i !== index}
+              />
+            ))}
+          </div>
+        </div>
+      )}
       <div className="hero-content">{children}</div>
       {slides.length > 1 && (
         <div className="hero-controls">

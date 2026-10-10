@@ -1,5 +1,5 @@
 import { menuSections } from '../data/menu';
-import { photos } from '../data/photos';
+import { sectionPhotos } from '../data/photos';
 import { ordering, orderLinkProps } from '../data/restaurant';
 import Placeholder from './Placeholder';
 
@@ -7,7 +7,7 @@ import Placeholder from './Placeholder';
 export default function DealsBand() {
   const special = menuSections.find((s) => s.id === 'specials')?.items[0];
   const glizzy = menuSections.find((s) => s.id === 'glizzy-deal');
-  const { deals } = photos;
+  const { deals } = sectionPhotos;
 
   return (
     <section id="deals" className="section catering deals" aria-labelledby="deals-title">
