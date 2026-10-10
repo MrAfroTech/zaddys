@@ -1,0 +1,18 @@
+.vercel
+dist
+node_modules
+coverage
+.cache
+
+# Environment variables
+.env
+.env.*
+
+# Logs
+*.log
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

@@ -1,0 +1,12 @@
+{
+  "buildCommand": "npm run vercel-build",
+  "outputDirectory": "dist",
+  "installCommand": "npm install",
+  "framework": null,
+  "rewrites": [
+    {
+      "source": "/((?!api/|images/|assets/).*)",
+      "destination": "/index.html"
+    }
+  ]
+}
