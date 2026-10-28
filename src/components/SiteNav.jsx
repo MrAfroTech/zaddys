@@ -2,9 +2,14 @@ import { useState } from 'react';
 import BrandMark from './BrandMark';
 import { ordering, orderLinkProps } from '../data/restaurant';
 
+// "Order online" only shows once VITE_ONLINE_ORDERING=true is set for the
+// build, so the demo ordering flow isn't linked from the live site by default.
+const ONLINE_ORDERING_LINK = import.meta.env.VITE_ONLINE_ORDERING === 'true';
+
 const LINKS = [
   { href: '/menu', label: 'Menu', page: 'menu' },
   { href: '/#deals', label: 'Deals' },
+  ...(ONLINE_ORDERING_LINK ? [{ href: '/order', label: 'Order online', page: 'order' }] : []),
   { ...orderLinkProps, label: ordering.label },
   { href: '/#visit', label: 'Visit' },
 ];
