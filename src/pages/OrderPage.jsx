@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import MenuItemCard from '../components/order/MenuItemCard';
+import { groupByCategory } from '../lib/menuGroups';
 import CartPanel from '../components/order/CartPanel';
 import CustomerFields, { validateCustomer } from '../components/order/CustomerFields';
 import PaymentMethodPicker from '../components/order/PaymentMethodPicker';
@@ -140,17 +141,24 @@ export default function OrderPage() {
         {menu.status === 'ready' && (
           <div className="order-layout">
             {step === 'menu' ? (
-              <ul className="order-menu" aria-label="Menu items">
-                {menu.items.map((item) => (
-                  <MenuItemCard
-                    key={item.id}
-                    item={item}
-                    orderingOpen={menu.enabled}
-                    quantityInCart={cart.lines.find((l) => l.id === item.id)?.quantity || 0}
-                    onAdd={cart.add}
-                  />
+              <div className="order-menu-groups">
+                {groupByCategory(menu.items).map((group) => (
+                  <section key={group.name} className="order-menu-group" aria-label={group.name}>
+                    <h2 className="order-menu-group-title">{group.name}</h2>
+                    <ul className="order-menu">
+                      {group.items.map((item) => (
+                        <MenuItemCard
+                          key={item.id}
+                          item={item}
+                          orderingOpen={menu.enabled}
+                          quantityInCart={cart.lines.find((l) => l.id === item.id)?.quantity || 0}
+                          onAdd={cart.add}
+                        />
+                      ))}
+                    </ul>
+                  </section>
                 ))}
-              </ul>
+              </div>
             ) : (
               <form className="checkout" onSubmit={submit} noValidate>
                 <h2 className="checkout-title">Your details</h2>

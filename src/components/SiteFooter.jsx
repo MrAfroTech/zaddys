@@ -18,6 +18,14 @@ export default function SiteFooter() {
             <a href={restaurant.phoneHref}>{restaurant.phone}</a>
             {restaurant.email && <><br /><a href={`mailto:${restaurant.email}`}>{restaurant.email}</a></>}
           </p>
+          {restaurant.social && (
+            <p>
+              <a href={restaurant.social.instagram} target="_blank" rel="noopener">Instagram</a>
+              {' · '}
+              <a href={restaurant.social.facebook} target="_blank" rel="noopener">Facebook</a>
+              {' · '}@zaddysintampa
+            </p>
+          )}
         </div>
         <div>
           <h2 className="footer-heading">Hours</h2>

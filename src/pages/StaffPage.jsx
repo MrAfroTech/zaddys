@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import MenuItemCard from '../components/order/MenuItemCard';
+import { groupByCategory } from '../lib/menuGroups';
 import CartPanel from '../components/order/CartPanel';
 import CustomerFields, { validateCustomer } from '../components/order/CustomerFields';
 import PaymentMethodPicker from '../components/order/PaymentMethodPicker';
@@ -243,17 +244,22 @@ function NewOrder() {
   return (
     <div className="order-layout">
       <div>
-        <ul className="order-menu order-menu-compact" aria-label="Menu items">
-          {menu.items.map((item) => (
-            <MenuItemCard
-              key={item.id}
-              item={item}
-              compact
-              quantityInCart={cart.lines.find((l) => l.id === item.id)?.quantity || 0}
-              onAdd={cart.add}
-            />
-          ))}
-        </ul>
+        {groupByCategory(menu.items).map((group) => (
+          <section key={group.name} className="order-menu-group" aria-label={group.name}>
+            <h3 className="order-menu-group-title">{group.name}</h3>
+            <ul className="order-menu order-menu-compact">
+              {group.items.map((item) => (
+                <MenuItemCard
+                  key={item.id}
+                  item={item}
+                  compact
+                  quantityInCart={cart.lines.find((l) => l.id === item.id)?.quantity || 0}
+                  onAdd={cart.add}
+                />
+              ))}
+            </ul>
+          </section>
+        ))}
         <form className="checkout" onSubmit={submit} noValidate>
           <h2 className="checkout-title">Customer</h2>
           <CustomerFields values={customer} onChange={setCustomer} errors={errors} idPrefix="staff-customer" />

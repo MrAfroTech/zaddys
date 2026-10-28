@@ -24,7 +24,7 @@ export default function MenuPage() {
           ))}
         </div>
         <p className="menu-note">
-          More menu items coming soon. Call <a href={restaurant.phoneHref}>{restaurant.phone}</a> for today's full lineup.
+          Prices and availability can change. Call <a href={restaurant.phoneHref}>{restaurant.phone}</a> with questions.
         </p>
         <div className="btn-row">
           <a {...orderLinkProps} className="btn btn-primary btn-lg">{ordering.label}</a>

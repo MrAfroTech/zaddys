@@ -16,7 +16,12 @@ export const restaurant = {
   },
   phone: '813-982-3922',
   phoneHref: 'tel:+18139823922',
-  email: null,
+  email: 'zaddysintampa@gmail.com',
+  website: 'https://zaddysintampa.com',
+  social: {
+    instagram: 'https://www.instagram.com/zaddysintampa',
+    facebook: 'https://www.facebook.com/zaddysintampa',
+  },
   directionsUrl:
     'https://www.google.com/maps/dir/?api=1&destination=' +
     encodeURIComponent('Zaddys Subs & Deli Shop, 2001 E. Hillsborough Ave Unit 6, Tampa, FL 33610'),

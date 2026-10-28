@@ -1,4 +1,4 @@
-import { menuSections } from '../data/menu';
+import { menuPrice, menuSections } from '../data/menu';
 import { sectionPhotos } from '../data/photos';
 import { ordering, orderLinkProps } from '../data/restaurant';
 import Placeholder from './Placeholder';
@@ -22,14 +22,14 @@ export default function DealsBand() {
         <p className="eyebrow eyebrow-light">Now open</p>
         <h2 id="deals-title" className="display">{glizzy.title}</h2>
         <ul className="deal-list">
-          {glizzy.items.map((item) => (
-            <li key={item.name}><span>{item.name}</span><span className="deal-price">{item.price}</span></li>
+          {glizzy.items.filter((item) => !item.addOn).map((item) => (
+            <li key={item.slug}><span>{item.name}</span><span className="deal-price">{menuPrice(item.prices[0])}</span></li>
           ))}
         </ul>
         {special && (
           <p className="deal-special">
             <span className="catering-sub">{special.name}</span>
-            <span className="deal-price">{special.price}</span>
+            <span className="deal-price">{menuPrice(special.prices[0])}</span>
             {special.availability && <span className="pill">{special.availability}</span>}
           </p>
         )}

@@ -298,6 +298,14 @@ text-shadow:none;filter:drop-shadow(0 1px 1px rgba(10,20,45,.4));}
 .catering-text{font-size:20px;max-width:36ch;margin-top:10px;}
 
 /* ---------- PRICES & DEALS ---------- */
+.menu-section-sub{font-size:13px;letter-spacing:.08em;text-transform:uppercase;opacity:.8;margin:-6px 0 10px;}
+.menu-sizes{display:flex;justify-content:flex-end;gap:6px;font-weight:700;font-size:13px;opacity:.85;margin-bottom:4px;}
+.menu-sizes span{min-width:62px;text-align:center;}
+.menu-item-prices{display:flex;gap:6px;margin-left:auto;}
+.menu-item-prices .menu-item-price{margin-left:0;min-width:62px;text-align:center;font-size:15px;padding:2px 6px;}
+.menu-item-desc{display:block;font-weight:400;font-size:13px;opacity:.8;}
+.menu-list li.is-addon .menu-item-name{font-weight:400;font-style:italic;}
+
 .menu-list li{display:flex;align-items:center;flex-wrap:wrap;gap:4px 8px;}
 .menu-item-price,.deal-price{
   display:inline-block;font-family:var(--font-display);font-weight:400;letter-spacing:.02em;
@@ -511,3 +519,12 @@ text-shadow:none;filter:drop-shadow(0 1px 1px rgba(10,20,45,.4));}
   .bring-arrow{left:auto;right:20px;top:50%;bottom:auto;transform:translateY(-50%);}
   .footer-grid{grid-template-columns:1fr;}
 }
+
+/* Order menu grouped by category */
+.order-menu-group + .order-menu-group{margin-top:28px;}
+.order-menu-group-title{font-size:20px;margin:0 0 12px;}
+/* Sized rows: keep the price columns on the name's line. */
+.menu-list li:has(.menu-item-prices){flex-wrap:nowrap;align-items:center;}
+.menu-list li:has(.menu-item-prices) .menu-item-name{flex:1 1 auto;min-width:0;}
+.menu-item-prices{flex-shrink:0;}
+@media (max-width:420px){.menu-sizes span,.menu-item-prices .menu-item-price{min-width:54px;}.menu-item-prices .menu-item-price{font-size:14px;padding:2px 4px;}}
