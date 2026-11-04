@@ -62,17 +62,16 @@ export function compose({ client, order, items, kind, statusUrl }) {
   const total = formatCents(order.total_cents);
   const first = order.customer_name.split(/\s+/)[0];
   const pay = kind === 'order_placed' ? paymentInstructions(order, client) : null;
+  const options = pay?.configured ? pay.options || [] : [];
+  const cashApp = options.find((o) => o.payUrl) || null;
+  const zelle = options.find((o) => o.id === 'zelle') || null;
 
   let subject;
   let lines;
+  let payLines = [];
   let smsBody;
   if (kind === 'order_placed') {
     subject = `${name} order ${num} — ${total} due`;
-    const how = pay?.configured
-      ? pay.method === 'cash_app'
-        ? `Pay with Cash App to ${pay.handle} (${pay.url})`
-        : `Pay with Zelle to ${pay.handle}`
-      : 'We will contact you with how to pay';
     lines = [
       `Hi ${first}, thanks for your order!`,
       '',
@@ -81,11 +80,16 @@ export function compose({ client, order, items, kind, statusUrl }) {
       `Subtotal ${formatCents(order.subtotal_cents)}`,
       ...(order.tax_cents ? [`${order.sales_tax_label || 'Sales tax'} ${formatCents(order.tax_cents)}`] : []),
       `Total ${total}`,
-      '',
-      'How to pay:',
-      ...(pay?.steps || []).map((s, i) => `${i + 1}. ${s}`),
     ];
-    smsBody = `${name}: order ${num} received. Total ${total}. ${how} and put ${num} in the note.`;
+    payLines = ['', `How to pay (${total}, put ${num} in the note/memo):`];
+    if (!options.length) payLines.push(...(pay?.steps || []));
+    for (const o of options) {
+      payLines.push(o.payUrl ? `- Cash App: ${o.payUrl}` : `- Zelle: send to ${o.handle} from your bank app`);
+    }
+    const smsPay = options.map((o) => (o.payUrl ? `Cash App: ${o.payUrl}` : `Zelle: ${o.handle}`)).join(' or ');
+    smsBody = options.length
+      ? `${name}: order ${num} received, ${total}. Pay by ${smsPay} (add ${num} in the note).`
+      : `${name}: order ${num} received, ${total}. We will contact you with how to pay.`;
   } else if (kind === 'payment_confirmed') {
     subject = `${name} order ${num} — payment received`;
     lines = [`Hi ${first}, we received your payment of ${total} for order ${num}. Thank you!`];
@@ -96,16 +100,37 @@ export function compose({ client, order, items, kind, statusUrl }) {
     smsBody = `${name}: order ${num} was cancelled. Questions? Please call the shop.`;
   }
 
-  if (statusUrl) {
-    lines.push('', `Order status: ${statusUrl}`);
-    smsBody += ` Status: ${statusUrl}`;
-  }
+  const statusLines = statusUrl ? ['', `Order status: ${statusUrl}`] : [];
+  if (statusUrl) smsBody += ` Status: ${statusUrl}`;
   smsBody += ' Reply STOP to opt out.';
 
-  const text = lines.join('\n');
+  const text = [...lines, ...payLines, ...statusLines].join('\n');
+
+  const para = (l) => (l ? `<p style="margin:0 0 6px">${escapeHtml(l).replace(/(https?:\/\/\S+)/g, '<a href="$1">$1</a>')}</p>` : '<br>');
+  // One-tap Cash App button (amount filled in) plus a QR code for people
+  // reading on a computer. Zelle has no payment link, so it stays as steps.
+  const cashAppHtml = cashApp
+    ? `<p style="margin:0 0 12px"><a href="${escapeHtml(cashApp.payUrl)}" style="display:inline-block;background:#00D64F;color:#ffffff;font-weight:bold;font-size:17px;text-decoration:none;padding:14px 26px;border-radius:10px">Pay ${escapeHtml(total)} with Cash App</a></p>
+<p style="margin:0 0 10px">Opens ${escapeHtml(cashApp.handle)} with ${escapeHtml(total)} filled in. Please add <strong>${escapeHtml(num)}</strong> in the note.</p>`
+    : '';
+  const zelleHtml = zelle
+    ? `<div style="margin:14px 0 6px;padding:12px 14px;border:2px solid #6D1ED4;border-radius:10px">
+<p style="margin:0 0 4px;font-weight:bold;color:#6D1ED4">Pay with Zelle</p>
+<p style="margin:0">In your bank app, choose Send with Zelle to <strong>${escapeHtml(zelle.handle)}</strong> (${escapeHtml(name)}), amount ${escapeHtml(total)}, memo <strong>${escapeHtml(num)}</strong>.</p></div>`
+    : '';
+  // Cash App: one-tap link (amount filled in). Zelle has no payment link, so
+  // it gets the recipient to send to. (QR codes live on the order page.) The method
+  // the customer picked comes first.
+  const payHtml = !payLines.length
+    ? ''
+    : `<h3 style="margin:18px 0 8px;font-size:17px">How to pay</h3>${
+      options.length
+        ? options.map((o) => (o.payUrl ? cashAppHtml : zelleHtml)).join(options.length > 1 ? '<p style="margin:10px 0;color:#666">— or —</p>' : '')
+        : (pay?.steps || []).map((x) => para(x)).join('')
+    }<p style="margin:10px 0 0;color:#666;font-size:13px">Your order stays “awaiting payment” until our staff see your payment arrive.</p>`;
   const html = `<!doctype html><html><body style="font-family:Arial,sans-serif;font-size:15px;line-height:1.5;color:#1d1d1d">${
-    lines.map((l) => (l ? `<p style="margin:0 0 6px">${escapeHtml(l).replace(/(https?:\/\/\S+)/g, '<a href="$1">$1</a>')}</p>` : '<br>')).join('')
-  }<p style="margin-top:18px;color:#666;font-size:13px">${escapeHtml(name)}</p></body></html>`;
+    lines.map(para).join('')
+  }${payHtml}${statusLines.map(para).join('')}<p style="margin-top:18px;color:#666;font-size:13px">${escapeHtml(name)}</p></body></html>`;
 
   return { subject, text, html, smsBody };
 }

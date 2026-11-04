@@ -19,7 +19,7 @@
 -- ---------------------------------------------------------------- clients
 alter table public.clients
   add column if not exists notifications_enabled boolean not null default false,
-  -- Sender on a verified Amazon SES domain, e.g. '"Zaddys" <zaddys@send.seamlessly.us>'.
+  -- Sender on a verified Amazon SES identity, e.g. '"Zaddys" <team@seamlessly.us>'.
   add column if not exists email_from_address text,
   -- Where customer replies go, e.g. 'zaddysintampa@gmail.com'.
   add column if not exists email_reply_to text,
@@ -186,11 +186,11 @@ revoke all on function public.ordering_remember_customer(uuid, uuid, text, text,
 grant execute on function public.ordering_remember_customer(uuid, uuid, text, text, text, boolean, boolean, text) to service_role;
 
 -- ---------------------------------------------------------------- zaddys
--- Sender settings. Email goes out from the shared platform sending domain
--- send.seamlessly.us (verified once in SES for all clients); replies go to the
--- restaurant. notifications_enabled stays false until the AWS side is ready
+-- Sender settings. For now email goes out from the platform address
+-- team@seamlessly.us with the restaurant's name; replies go to the restaurant.
+-- (Later: a per-client address such as zaddys@send.seamlessly.us.) notifications_enabled stays false until the AWS side is ready
 -- (SES domain verified + out of sandbox; SMS number registered).
 update public.clients
-   set email_from_address = coalesce(email_from_address, '"Zaddys Subs & Deli Shop" <zaddys@send.seamlessly.us>'),
+   set email_from_address = coalesce(email_from_address, '"Zaddys Subs & Deli Shop" <team@seamlessly.us>'),
        email_reply_to = coalesce(email_reply_to, 'zaddysintampa@gmail.com')
  where slug = 'zaddys';

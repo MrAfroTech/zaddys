@@ -28,6 +28,16 @@ export const restaurant = {
 };
 
 /**
+ * Payment extras shown on the order page. `cashAppQr` is the restaurant's
+ * official Cash App QR code (exported from Cash App). TODO(zaddys): add
+ * `zelleQr` when Zaddys sends their Zelle QR code.
+ */
+export const payments = {
+  cashAppQr: '/images/cashapp-qr-zaddysintampa.svg',
+  zelleQr: null,
+};
+
+/**
  * How guests order. No online ordering link is known yet, so ordering is a
  * phone call. TODO(zaddys): set `url` to the online ordering link (and
  * `external: true`) if Zaddys has one.

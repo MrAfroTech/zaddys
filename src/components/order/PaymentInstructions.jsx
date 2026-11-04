@@ -1,20 +1,26 @@
 import { useState } from 'react';
+import { payments } from '../../data/restaurant';
 
 /**
- * Payment instructions from the server (Cash App or Zelle). The Cash App link
- * opens the restaurant's $Cashtag profile only — it does not pre-fill the
- * amount or confirm payment. Zelle has no payment link, so the recipient can
- * be copied. `forStaff` adds copy / open-in-Messages tools for when the
- * customer didn't choose automatic updates or a message needs a personal send.
+ * Payment instructions from the server. The customer can pay by any method
+ * the restaurant offers (`instructions.options`, the one picked at checkout
+ * first): the Cash App button opens the restaurant's $Cashtag with the amount
+ * filled in (the note can't be pre-filled), next to the restaurant's official
+ * Cash App QR code; Zelle has no payment link, so its recipient can be copied
+ * for the bank app. Nothing here
+ * confirms payment. `forStaff` adds copy / open-in-Messages tools.
  */
 export default function PaymentInstructions({ instructions, forStaff = false, customerPhone = '' }) {
   const [copied, setCopied] = useState('');
   const [handleCopied, setHandleCopied] = useState(false);
+  const options = instructions?.configured ? instructions.options || [] : [];
+  const [selectedId, setSelectedId] = useState(options[0]?.id || null);
+  const selected = options.find((o) => o.id === selectedId) || options[0] || null;
   if (!instructions) return null;
 
   async function copyHandle() {
     try {
-      await navigator.clipboard.writeText(instructions.handle);
+      await navigator.clipboard.writeText(selected.handle);
       setHandleCopied(true);
     } catch {
       setHandleCopied(false);
@@ -32,29 +38,76 @@ export default function PaymentInstructions({ instructions, forStaff = false, cu
 
   const smsDigits = customerPhone.replace(/[^\d+]/g, '');
   const smsHref = smsDigits ? `sms:${smsDigits}?&body=${encodeURIComponent(instructions.messageText)}` : null;
+  const steps = selected ? selected.steps : instructions.steps;
 
   return (
     <section className="pay-instructions" aria-labelledby="pay-title">
-      <h3 id="pay-title">How to pay{instructions.configured ? ` with ${instructions.methodLabel}` : ''}</h3>
+      <h3 id="pay-title">How to pay</h3>
       <p className="pay-amount">
         Amount due <strong>{instructions.amountDisplay}</strong> · Order <strong>{instructions.orderNumber}</strong>
       </p>
-      <ol className="pay-steps">
-        {instructions.steps.map((s) => <li key={s}>{s}</li>)}
-      </ol>
-      {instructions.configured && !forStaff && instructions.url && (
-        <a href={instructions.url} className="btn btn-primary" target="_blank" rel="noopener noreferrer">
-          Open {instructions.methodLabel} ({instructions.handle})
-        </a>
-      )}
-      {instructions.configured && !forStaff && !instructions.url && (
-        <div className="btn-row">
-          <button type="button" className="btn btn-primary" onClick={copyHandle}>
-            Copy {instructions.methodLabel} recipient ({instructions.handle})
-          </button>
-          <span aria-live="polite" className="pay-message-note">{handleCopied ? 'Copied.' : ''}</span>
+
+      {options.length > 1 && (
+        <div className="pay-switch" role="group" aria-label="Pay with">
+          {options.map((o) => (
+            <button
+              key={o.id}
+              type="button"
+              className={`pay-switch-btn pay-switch-${o.id}${o.id === selected.id ? ' is-active' : ''}`}
+              aria-pressed={o.id === selected.id}
+              onClick={() => {
+                setSelectedId(o.id);
+                setHandleCopied(false);
+              }}
+            >
+              {o.label}
+            </button>
+          ))}
         </div>
       )}
+
+      {selected?.payUrl && (
+        <div className="pay-cashapp">
+          <a href={selected.payUrl} className="btn btn-primary btn-lg btn-cashapp" target="_blank" rel="noopener noreferrer">
+            Pay {instructions.amountDisplay} with Cash App
+          </a>
+          {payments.cashAppQr && (
+            <figure className="pay-qr">
+              <a href={selected.payUrl} target="_blank" rel="noopener noreferrer">
+                <img src={payments.cashAppQr} width="160" height="160" alt={`Cash App QR code for ${selected.handle}`} />
+              </a>
+              <figcaption>
+                {forStaff
+                  ? `Customer can scan this to pay ${selected.handle}. They enter ${instructions.amountDisplay} and ${instructions.orderNumber} in the note.`
+                  : `Or scan with your phone camera. Enter ${instructions.amountDisplay} and ${instructions.orderNumber} in the note.`}
+              </figcaption>
+            </figure>
+          )}
+        </div>
+      )}
+      {selected && !selected.payUrl && (
+        <div className="pay-zelle">
+          <p className="pay-zelle-to">
+            Zelle to <strong>{selected.handle}</strong>
+          </p>
+          <div className="btn-row">
+            <button type="button" className="btn btn-primary btn-lg btn-zelle" onClick={copyHandle}>
+              {handleCopied ? 'Copied — now open your bank app' : 'Copy Zelle email'}
+            </button>
+          </div>
+          {payments.zelleQr && (
+            <figure className="pay-qr">
+              <img src={payments.zelleQr} width="160" height="160" alt={`Zelle QR code for ${selected.handle}`} />
+              <figcaption>Scan in your bank app’s Zelle screen.</figcaption>
+            </figure>
+          )}
+        </div>
+      )}
+
+      <ol className="pay-steps">
+        {steps.map((s) => <li key={s}>{s}</li>)}
+      </ol>
+
       {forStaff && (
         <div className="pay-message">
           <label htmlFor="pay-message-text">Message for the customer</label>

@@ -168,11 +168,12 @@ How it works:
 
 Turning it on for a client (AWS side first):
 
-1. **SES**: all clients send from the shared domain `send.seamlessly.us`
-   (one address per client, e.g. `zaddys@send.seamlessly.us`; replies go to
-   the restaurant via `email_reply_to`). Verify it once in SES: add the 3
-   DKIM CNAMEs SES gives you in Namecheap DNS for seamlessly.us, then request
+1. **SES**: for now every client sends from `team@seamlessly.us` with the
+   restaurant's name as the sender name; replies go to the restaurant via
+   `email_reply_to`. Verify the `seamlessly.us` domain in SES (Easy DKIM: add
+   the 3 CNAMEs to Namecheap DNS) so mail passes DMARC, then request
    production access (until then SES only sends to verified addresses).
+   Per-client addresses (e.g. `zaddys@send.seamlessly.us`) can come later.
 2. **SMS**: get a toll-free number in AWS End User Messaging SMS and submit
    toll-free verification (US carriers block unverified numbers; approval
    takes days to weeks). Keep the default opt-out list on the number.
@@ -182,7 +183,7 @@ Turning it on for a client (AWS side first):
 
 ```sql
 update public.clients
-   set email_from_address = '"Zaddys Subs & Deli Shop" <zaddys@send.seamlessly.us>',  -- set by db/002
+   set email_from_address = '"Zaddys Subs & Deli Shop" <team@seamlessly.us>',  -- set by db/002
        email_reply_to = 'zaddysintampa@gmail.com',
        sms_origination_identity = '+1XXXXXXXXXX',   -- the verified toll-free number
        notifications_enabled = true
