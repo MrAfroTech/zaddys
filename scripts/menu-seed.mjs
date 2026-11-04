@@ -26,7 +26,7 @@ for (const section of menuSections) {
       rows.push({
         slug: size ? `${item.slug}-${sizeSlug(size)}` : item.slug,
         name,
-        description: notes.length ? notes.join(' — ') : null,
+        description: notes.join(' — '),
         cents,
         category: section.title,
         order: (rows.length + 1) * 10,
