@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import MenuItemCard from '../components/order/MenuItemCard';
 import { groupByCategory } from '../lib/menuGroups';
 import CartPanel from '../components/order/CartPanel';
-import CustomerFields, { validateCustomer } from '../components/order/CustomerFields';
+import CustomerFields, { customerPayload, EMPTY_CUSTOMER, validateCustomer } from '../components/order/CustomerFields';
 import PaymentMethodPicker from '../components/order/PaymentMethodPicker';
 import { apiRequest, newRequestKey } from '../lib/api';
 import { CART_LIMITS, useCart } from '../lib/useCart';
@@ -10,6 +10,36 @@ import { formatCents } from '../lib/money';
 import { restaurant } from '../data/restaurant';
 
 const KEY_STORAGE = 'zaddys-checkout-key';
+// The customer's details and update choices, remembered on this device only
+// when they tick "Remember me".
+const CUSTOMER_STORAGE = 'zaddys-customer';
+
+function savedCustomer() {
+  try {
+    const saved = JSON.parse(window.localStorage.getItem(CUSTOMER_STORAGE) || 'null');
+    if (saved && typeof saved === 'object') {
+      return {
+        name: String(saved.name || ''),
+        phone: String(saved.phone || ''),
+        email: String(saved.email || ''),
+        notifySms: saved.notifySms === true,
+        notifyEmail: saved.notifyEmail === true,
+      };
+    }
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
+
+function rememberCustomerLocally(values, remember) {
+  try {
+    if (remember) window.localStorage.setItem(CUSTOMER_STORAGE, JSON.stringify(customerPayload(values)));
+    else window.localStorage.removeItem(CUSTOMER_STORAGE);
+  } catch {
+    /* ignore */
+  }
+}
 
 /**
  * One request key per distinct checkout payload, kept in sessionStorage so a
@@ -37,7 +67,8 @@ export default function OrderPage() {
   const [menu, setMenu] = useState({ status: 'loading', items: [], enabled: false, methods: [], error: '' });
   const [paymentMethod, setPaymentMethod] = useState('');
   const [step, setStep] = useState('menu');
-  const [customer, setCustomer] = useState({ name: '', phone: '', email: '' });
+  const [customer, setCustomer] = useState(() => savedCustomer() || EMPTY_CUSTOMER);
+  const [rememberMe, setRememberMe] = useState(true);
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
@@ -81,7 +112,7 @@ export default function OrderPage() {
     if (!canCheckout) return;
 
     const payload = {
-      customer: { name: customer.name.trim(), phone: customer.phone.trim(), email: customer.email.trim() },
+      customer: customerPayload(customer),
       paymentMethod,
       items: cart.lines.map((l) => ({ menuItemId: l.id, quantity: l.quantity })),
     };
@@ -92,6 +123,7 @@ export default function OrderPage() {
         body: { ...payload, idempotencyKey: requestKeyFor(payload) },
       });
       cart.clear();
+      rememberCustomerLocally(customer, rememberMe);
       try {
         window.sessionStorage.removeItem(KEY_STORAGE);
       } catch {
@@ -164,6 +196,10 @@ export default function OrderPage() {
                 <h2 className="checkout-title">Your details</h2>
                 <p className="checkout-help">We use these only to reach you about this order.</p>
                 <CustomerFields values={customer} onChange={setCustomer} errors={errors} />
+                <label className="check remember-me">
+                  <input type="checkbox" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} />
+                  <span>Remember my details on this device</span>
+                </label>
                 <PaymentMethodPicker methods={menu.methods} value={paymentMethod} onChange={setPaymentMethod} error={errors.paymentMethod} />
                 <p className="checkout-pay-note">
                   After you place the order you'll see the exact amount and who to pay.

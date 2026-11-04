@@ -11,7 +11,9 @@ export async function getClient() {
   if (!slug) throw new Error('CLIENT_SLUG is not set');
   const { data, error } = await serviceClient()
     .from('clients')
-    .select('id, slug, name, status, order_number_prefix, timezone, cashapp_cashtag, zelle_recipient, online_ordering_enabled, sales_tax_rate_bp, sales_tax_label')
+    // '*' so newer settings columns (e.g. notification senders) are picked up
+    // without breaking before their migration has run.
+    .select('*')
     .eq('slug', slug)
     .maybeSingle();
   if (error) throw error;

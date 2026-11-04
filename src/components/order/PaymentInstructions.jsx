@@ -4,8 +4,8 @@ import { useState } from 'react';
  * Payment instructions from the server (Cash App or Zelle). The Cash App link
  * opens the restaurant's $Cashtag profile only — it does not pre-fill the
  * amount or confirm payment. Zelle has no payment link, so the recipient can
- * be copied. `forStaff` adds copy / open-in-Messages tools; nothing is sent
- * automatically.
+ * be copied. `forStaff` adds copy / open-in-Messages tools for when the
+ * customer didn't choose automatic updates or a message needs a personal send.
  */
 export default function PaymentInstructions({ instructions, forStaff = false, customerPhone = '' }) {
   const [copied, setCopied] = useState('');
@@ -64,7 +64,7 @@ export default function PaymentInstructions({ instructions, forStaff = false, cu
             {smsHref && <a className="btn btn-outline" href={smsHref}>Open in Messages</a>}
           </div>
           <p className="pay-message-note" aria-live="polite">
-            {copied || 'Nothing is sent automatically. Copy the message or open it in your Messages app and send it yourself.'}
+            {copied || 'To send it from your own phone instead, copy the message or open it in Messages.'}
           </p>
         </div>
       )}

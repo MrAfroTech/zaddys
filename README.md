@@ -135,3 +135,59 @@ each November).
 | Server helpers | `server/` |
 | Pages | `src/pages/OrderPage.jsx`, `OrderStatusPage.jsx`, `StaffPage.jsx` |
 | Settings | `.env.example` |
+
+## Order messages (email via Amazon SES, texts via AWS End User Messaging SMS)
+
+Customers choose **Text message** and/or **Email** at checkout (staff tick
+them for phone orders after asking). They get:
+
+- **Order placed** — items, total with tax, and exactly how to pay (Cash App / Zelle), plus their status link.
+- **Payment received** — when staff verify the payment.
+- **Order cancelled** — when staff cancel.
+
+How it works:
+
+- `db/002_customer_notifications.sql` (run after `db/schema.sql`) adds
+  `client_customers` (one row per customer per client, keyed by phone, with
+  name, email, update choices and SMS consent: when and how it was given),
+  `client_notifications` (every message sent / failed / skipped; unique per
+  order + channel + kind so retries never double-send) and per-client sender
+  settings on `clients`.
+- Returning customers: staff typing a known phone number get the saved name,
+  email and update choices filled in (`/api/staff/customers`). Online
+  customers can tick "Remember my details on this device" (browser storage).
+- Email: SES `SendEmail` from `clients.email_from_address`, replies to
+  `clients.email_reply_to`. SES itself can't send SMS.
+- SMS: AWS End User Messaging SMS `SendTextMessage` from
+  `clients.sms_origination_identity`. Every text ends "Reply STOP to opt
+  out"; AWS handles STOP and a send to an opted-out number marks the customer
+  opted out. Texts are only sent with recorded consent.
+- A message failing never fails the order. Staff see each message's status on
+  the order with **Retry / Send again**, and can still copy the message or
+  open it in Messages.
+
+Turning it on for a client (AWS side first):
+
+1. **SES**: all clients send from the shared domain `send.seamlessly.us`
+   (one address per client, e.g. `zaddys@send.seamlessly.us`; replies go to
+   the restaurant via `email_reply_to`). Verify it once in SES: add the 3
+   DKIM CNAMEs SES gives you in Namecheap DNS for seamlessly.us, then request
+   production access (until then SES only sends to verified addresses).
+2. **SMS**: get a toll-free number in AWS End User Messaging SMS and submit
+   toll-free verification (US carriers block unverified numbers; approval
+   takes days to weeks). Keep the default opt-out list on the number.
+3. IAM user with `ses:SendEmail` + `sms-voice:SendTextMessage` only; put its
+   keys in Vercel as `MESSAGING_AWS_*` (see `.env.example`).
+4. Set the client's senders and switch on:
+
+```sql
+update public.clients
+   set email_from_address = '"Zaddys Subs & Deli Shop" <zaddys@send.seamlessly.us>',  -- set by db/002
+       email_reply_to = 'zaddysintampa@gmail.com',
+       sms_origination_identity = '+1XXXXXXXXXX',   -- the verified toll-free number
+       notifications_enabled = true
+ where slug = 'zaddys';
+```
+
+Leave `sms_origination_identity` null to send email only until the number is
+verified.

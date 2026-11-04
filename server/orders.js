@@ -3,6 +3,8 @@ import { serviceClient } from './supabase.js';
 import { HttpError } from './http.js';
 import { paymentInstructions } from './payment-methods.js';
 import { orderStatusPath } from './order-links.js';
+import { notificationView, notificationsByOrder, notifyOrder } from './notify.js';
+import { rememberCustomer } from './customers.js';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const IDEMPOTENCY_RE = /^[A-Za-z0-9-]{16,80}$/;
@@ -36,6 +38,10 @@ export function validateOrderInput(body, source) {
   if (name.length < 2) errors.name = 'Please enter your name.';
   if (phoneDigits.length < 10 || phoneDigits.length > 15) errors.phone = 'Please enter a valid phone number.';
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.email = 'Please enter a valid email or leave it blank.';
+  // Order updates: texts need a textable number; email updates need an email.
+  const notifySms = customer.notifySms === true;
+  const notifyEmail = customer.notifyEmail === true;
+  if (notifyEmail && !email && !errors.email) errors.email = 'Enter an email address to get email updates.';
 
   const paymentMethod = body.paymentMethod;
   if (paymentMethod !== 'cash_app' && paymentMethod !== 'zelle') errors.paymentMethod = 'Choose how you will pay.';
@@ -68,7 +74,7 @@ export function validateOrderInput(body, source) {
 
   return {
     idempotencyKey,
-    customer: { name, phone: phoneRaw, email },
+    customer: { name, phone: phoneRaw, email, notifySms, notifyEmail },
     paymentMethod,
     items: items.map((l) => ({ menu_item_id: l.menuItemId.toLowerCase(), quantity: l.quantity })),
   };
@@ -126,6 +132,32 @@ export async function createOrder({ client, source, staff = null, input }) {
   const row = Array.isArray(data) ? data[0] : data;
   if (!row?.order_id) throw new Error('create_order returned no order');
   return { orderId: row.order_id, created: row.created };
+}
+
+/**
+ * After an order is created (or a retry returns it): remember the customer and
+ * their update preferences, then send the "order placed" message on the
+ * channels they chose. Both steps are safe to repeat and never fail the order.
+ */
+export async function afterOrderCreated({ client, orderId, input, source, origin }) {
+  await rememberCustomer({ client, orderId, input, source });
+  const loaded = await loadOrder(orderId, client.id);
+  await notifyOrder({ client, order: loaded.order, items: loaded.items, kind: 'order_placed', origin });
+  return loaded;
+}
+
+/** Sends a status message (payment confirmed, cancelled) for an existing order. */
+export async function notifyOrderChange({ client, orderId, kind, origin }) {
+  const loaded = await loadOrder(orderId, client.id);
+  if (loaded) await notifyOrder({ client, order: loaded.order, items: loaded.items, kind, origin });
+}
+
+/** Staff view of one order with its verifications and message history. */
+export async function loadStaffOrder(orderId, client, origin) {
+  const loaded = await loadOrder(orderId, client.id);
+  if (!loaded) return null;
+  const notes = await notificationsByOrder(client.id, [orderId]);
+  return staffView(loaded.order, loaded.items, [], client, { origin, notifications: notes[orderId] });
 }
 
 /** Loads an order only if it belongs to the given client. */
@@ -195,7 +227,7 @@ export function customerView(order, items, client) {
 }
 
 /** Full staff view, including contact details and the verification history. */
-export function staffView(order, items, verifications, client, { origin = '' } = {}) {
+export function staffView(order, items, verifications, client, { origin = '', notifications = [] } = {}) {
   const statusPath = orderStatusPath(order.id);
   return {
     id: order.id,
@@ -204,6 +236,9 @@ export function staffView(order, items, verifications, client, { origin = '' } =
     createdAt: order.created_at,
     updatedAt: order.updated_at,
     customer: { name: order.customer_name, phone: order.customer_phone, email: order.customer_email },
+    notifySms: Boolean(order.notify_sms),
+    notifyEmail: Boolean(order.notify_email),
+    notifications: notificationView(notifications),
     items: itemView(items),
     subtotalCents: order.subtotal_cents,
     taxCents: order.tax_cents,

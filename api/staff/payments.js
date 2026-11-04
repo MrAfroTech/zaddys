@@ -2,7 +2,7 @@ import { serviceClient } from '../../server/supabase.js';
 import { allowMethods, handle, HttpError, readJson, sendJson } from '../../server/http.js';
 import { getClient } from '../../server/clients.js';
 import { requireStaff } from '../../server/staff-auth.js';
-import { isUuid, mapRpcError } from '../../server/orders.js';
+import { isUuid, mapRpcError, notifyOrderChange, siteOrigin } from '../../server/orders.js';
 
 const RPC_ERRORS = {
   order_not_found: [404, 'Order not found.'],
@@ -27,6 +27,8 @@ const RPC_ERRORS = {
  * - On an already-paid order nothing changes unless `additional` is set, which
  *   records a second payment and flags a possible duplicate (no auto refund).
  * - The staff member's identity comes from their session, not the request.
+ * - When the order becomes paid, the customer gets a "payment received"
+ *   text/email if they opted in.
  */
 export default handle(async (req, res) => {
   if (!allowMethods(req, res, ['POST'])) return;
@@ -61,5 +63,8 @@ export default handle(async (req, res) => {
   });
   if (error) throw mapRpcError(error, RPC_ERRORS);
 
+  if (data?.result === 'verified') {
+    await notifyOrderChange({ client, orderId: body.orderId, kind: 'payment_confirmed', origin: siteOrigin(req) });
+  }
   sendJson(res, 200, { result: data?.result });
 });

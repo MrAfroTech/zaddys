@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 import MenuItemCard from '../components/order/MenuItemCard';
 import { groupByCategory } from '../lib/menuGroups';
 import CartPanel from '../components/order/CartPanel';
-import CustomerFields, { validateCustomer } from '../components/order/CustomerFields';
+import CustomerFields, { customerPayload, EMPTY_CUSTOMER, validateCustomer } from '../components/order/CustomerFields';
+import NotificationStatus from '../components/order/NotificationStatus';
 import PaymentMethodPicker from '../components/order/PaymentMethodPicker';
 import OrderLines from '../components/order/OrderLines';
 import PaymentInstructions from '../components/order/PaymentInstructions';
@@ -157,7 +158,8 @@ function NewOrder() {
   const [menu, setMenu] = useState({ status: 'loading', items: [], methods: [], error: '' });
   const [paymentMethod, setPaymentMethod] = useState('');
   const cart = useCart('zaddys-staff-cart', menu.items, CART_LIMITS.staff);
-  const [customer, setCustomer] = useState({ name: '', phone: '', email: '' });
+  const [customer, setCustomer] = useState(EMPTY_CUSTOMER);
+  const [returning, setReturning] = useState(null);
   const [errors, setErrors] = useState({});
   const [submitError, setSubmitError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -177,6 +179,28 @@ function NewOrder() {
     loadMenu();
   }, [loadMenu]);
 
+  // Returning customer: fill in what we remember for this phone number.
+  async function lookUpCustomer() {
+    const digits = customer.phone.replace(/\D/g, '');
+    if (digits.length < 10 || returning?.digits === digits) return;
+    try {
+      const data = await staffRequest(`/api/staff/customers?phone=${encodeURIComponent(customer.phone)}`);
+      const found = data.customer;
+      setReturning(found ? { ...found, digits } : { digits, none: true });
+      if (found) {
+        setCustomer((c) => ({
+          ...c,
+          name: c.name.trim() ? c.name : found.name,
+          email: c.email.trim() ? c.email : found.email,
+          notifySms: found.notifySms,
+          notifyEmail: found.notifyEmail,
+        }));
+      }
+    } catch {
+      setReturning(null);
+    }
+  }
+
   async function submit(e) {
     e.preventDefault();
     setSubmitError('');
@@ -186,7 +210,7 @@ function NewOrder() {
     if (Object.keys(found).length || !cart.lines.length || cart.hasUnavailable || cart.overLimit) return;
 
     const payload = {
-      customer: { name: customer.name.trim(), phone: customer.phone.trim(), email: customer.email.trim() },
+      customer: customerPayload(customer),
       paymentMethod,
       items: cart.lines.map((l) => ({ menuItemId: l.id, quantity: l.quantity })),
     };
@@ -212,7 +236,8 @@ function NewOrder() {
   function startAnother() {
     setCreated(null);
     setPaymentMethod('');
-    setCustomer({ name: '', phone: '', email: '' });
+    setCustomer(EMPTY_CUSTOMER);
+    setReturning(null);
     setRequestKey({ body: '', key: '' });
     setErrors({});
   }
@@ -225,6 +250,13 @@ function NewOrder() {
           <strong>{formatCents(created.totalCents)}</strong>. Payment status: {paymentStatusLabel(created.paymentStatus)}.
         </p>
         <OrderLines order={created} />
+        <NotificationStatus
+          order={created}
+          onResend={async (kind, channel) => {
+            const data = await staffRequest('/api/staff/order-actions', { method: 'POST', body: { orderId: created.id, action: 'resend_messages', kind, channel } });
+            if (data.order) setCreated(data.order);
+          }}
+        />
         <PaymentInstructions instructions={created.paymentInstructions} forStaff customerPhone={created.customer.phone} />
         <button type="button" className="btn btn-primary" onClick={startAnother}>Start another order</button>
       </div>
@@ -262,7 +294,14 @@ function NewOrder() {
         ))}
         <form className="checkout" onSubmit={submit} noValidate>
           <h2 className="checkout-title">Customer</h2>
-          <CustomerFields values={customer} onChange={setCustomer} errors={errors} idPrefix="staff-customer" />
+          <CustomerFields values={customer} onChange={setCustomer} errors={errors} idPrefix="staff-customer" mode="staff" onPhoneBlur={lookUpCustomer} />
+          {returning && !returning.none && returning.digits === customer.phone.replace(/\D/g, '') && (
+            <p className="notice returning-customer" role="status">
+              Returning customer · {returning.orderCount} {returning.orderCount === 1 ? 'order' : 'orders'}. Saved details and
+              update choices are filled in — check them with the customer.
+              {returning.smsOptedOut && ' They replied STOP to texts, so only tick Text message if they ask to get texts again.'}
+            </p>
+          )}
           <PaymentMethodPicker methods={menu.methods} value={paymentMethod} onChange={setPaymentMethod} error={errors.paymentMethod} name="staff-payment-method" />
           {errors.items && <p className="field-error" role="alert">{errors.items}</p>}
           {submitError && <p className="notice notice-error" role="alert">{submitError}</p>}
@@ -360,6 +399,13 @@ function StaffOrderCard({ order, onDone }) {
         {order.customer.name} · <a href={`tel:${order.customer.phone.replace(/[^\d+]/g, '')}`}>{order.customer.phone}</a>
       </p>
       <OrderLines order={order} />
+      <NotificationStatus
+        order={order}
+        onResend={async (kind, channel) => {
+          await staffRequest('/api/staff/order-actions', { method: 'POST', body: { orderId: order.id, action: 'resend_messages', kind, channel } });
+          onDone(`${order.orderNumber}: tried sending again — see the message status below.`);
+        }}
+      />
 
       {order.verifications.length > 0 && (
         <details className="staff-verifications">

@@ -2,9 +2,11 @@ import { serviceClient } from '../../server/supabase.js';
 import { allowMethods, handle, HttpError, readJson, sendJson } from '../../server/http.js';
 import { getClient } from '../../server/clients.js';
 import { requireStaff } from '../../server/staff-auth.js';
-import { isUuid, mapRpcError } from '../../server/orders.js';
+import { isUuid, loadOrder, loadStaffOrder, mapRpcError, notifyOrderChange, siteOrigin } from '../../server/orders.js';
+import { notifyOrder } from '../../server/notify.js';
 
-const ACTIONS = ['manual_review', 'return_to_pending', 'cancel', 'complete'];
+const ACTIONS = ['manual_review', 'return_to_pending', 'cancel', 'complete', 'resend_messages'];
+const MESSAGE_KINDS = ['order_placed', 'payment_confirmed', 'order_cancelled'];
 
 const RPC_ERRORS = {
   order_not_found: [404, 'Order not found.'],
@@ -20,6 +22,7 @@ const RPC_ERRORS = {
  * cancel   : closes the order (pending payment -> cancelled; a paid order keeps
  *            its paid record and is flagged "cancelled_after_payment")
  * complete : closes a paid order (handed to the customer)
+ * resend_messages : { kind, channel? } re-sends a customer text/email
  * Payment status and order status are changed independently; every change is
  * written to order_events with the staff member's identity.
  */
@@ -33,6 +36,24 @@ export default handle(async (req, res) => {
   if (!ACTIONS.includes(body.action)) throw new HttpError(400, 'Unknown action.');
   const reason = typeof body.reason === 'string' ? body.reason.trim().slice(0, 300) : '';
 
+  if (body.action === 'resend_messages') {
+    if (!MESSAGE_KINDS.includes(body.kind)) throw new HttpError(400, 'Unknown message.');
+    if (body.channel !== undefined && body.channel !== 'sms' && body.channel !== 'email') throw new HttpError(400, 'Unknown channel.');
+    const loaded = await loadOrder(body.orderId, client.id);
+    if (!loaded) throw new HttpError(404, 'Order not found.');
+    await notifyOrder({
+      client,
+      order: loaded.order,
+      items: loaded.items,
+      kind: body.kind,
+      origin: siteOrigin(req),
+      force: true,
+      channels: body.channel ? [body.channel] : null,
+    });
+    sendJson(res, 200, { result: 'ok', order: await loadStaffOrder(body.orderId, client, siteOrigin(req)) });
+    return;
+  }
+
   const { error } = await serviceClient().rpc('ordering_order_action', {
     p_client_id: client.id,
     p_order_id: body.orderId,
@@ -43,5 +64,8 @@ export default handle(async (req, res) => {
   });
   if (error) throw mapRpcError(error, RPC_ERRORS);
 
+  if (body.action === 'cancel') {
+    await notifyOrderChange({ client, orderId: body.orderId, kind: 'order_cancelled', origin: siteOrigin(req) });
+  }
   sendJson(res, 200, { result: 'ok' });
 });
