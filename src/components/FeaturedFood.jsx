@@ -9,7 +9,7 @@ export default function FeaturedFood() {
       <div className="container featured-layout">
         <div className="featured-media">
           {featured.src ? (
-            <img src={featured.src} alt={featured.alt} loading="lazy" className="featured-img" />
+            <img src={featured.src} srcSet={featured.srcSet} sizes="(max-width: 760px) 90vw, 440px" alt={featured.alt} loading="lazy" className="featured-img" />
           ) : (
             <Placeholder label={featured.label} className="featured-img" />
           )}

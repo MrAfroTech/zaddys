@@ -11,7 +11,7 @@ import { restaurant, ordering, orderLinkProps } from '../data/restaurant';
 export default function Homepage() {
   return (
     <>
-      <HeroSlideshow slides={heroSlides} framed>
+      <HeroSlideshow slides={heroSlides}>
         <p className="eyebrow eyebrow-light">Now open</p>
         <h1 className="hero-title">{restaurant.name}</h1>
         <p className="hero-tagline">{restaurant.tagline}. {restaurant.intro}</p>

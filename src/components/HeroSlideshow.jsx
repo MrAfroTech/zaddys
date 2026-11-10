@@ -34,7 +34,14 @@ export default function HeroSlideshow({ slides, children, framed = false }) {
             {slide.placeholder || !slide.src ? (
               <Placeholder label={slide.label || slide.alt} className="placeholder-hero" />
             ) : (
-              <img src={slide.src} alt={framed ? '' : slide.alt} loading={i === 0 ? 'eager' : 'lazy'} fetchpriority={i === 0 ? 'high' : undefined} />
+              <img
+                src={slide.src}
+                srcSet={slide.srcSet}
+                sizes={slide.srcSet ? '100vw' : undefined}
+                alt={framed ? '' : slide.alt}
+                loading={i === 0 ? 'eager' : 'lazy'}
+                fetchpriority={i === 0 ? 'high' : undefined}
+              />
             )}
           </div>
         ))}

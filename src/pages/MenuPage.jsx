@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { menuSections } from '../data/menu';
+import { sectionPhotos } from '../data/photos';
 import { ordering, orderLinkProps, restaurant } from '../data/restaurant';
 import MenuSection from '../components/MenuSection';
 
@@ -13,6 +14,13 @@ export default function MenuPage() {
       <div className="container">
         <p className="eyebrow">Our menu</p>
         <h1 id="menu-page-title" className="section-title">Zaddys menu</h1>
+        <ul className="menu-photos">
+          {sectionPhotos.menu.map((photo) => (
+            <li key={photo.src}>
+              <img src={photo.src} srcSet={photo.srcSet} sizes="(max-width: 760px) 50vw, 25vw" alt={photo.alt} loading="lazy" />
+            </li>
+          ))}
+        </ul>
         <nav className="menu-jump" aria-label="Menu sections">
           {menuSections.map((s) => <a key={s.id} href={`#${s.id}`}>{s.title}</a>)}
         </nav>

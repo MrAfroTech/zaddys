@@ -13,7 +13,7 @@ export default function DealsBand() {
     <section id="deals" className="section catering deals" aria-labelledby="deals-title">
       <div className="catering-media">
         {deals.src ? (
-          <img src={deals.src} alt={deals.alt} loading="lazy" className="catering-img" />
+          <img src={deals.src} srcSet={deals.srcSet} sizes="(max-width: 760px) 100vw, 50vw" alt={deals.alt} loading="lazy" className="catering-img" />
         ) : (
           <Placeholder label={deals.label} className="catering-img" />
         )}
