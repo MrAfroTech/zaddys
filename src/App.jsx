@@ -7,6 +7,7 @@ import MenuPage from './pages/MenuPage';
 import OrderPage from './pages/OrderPage';
 import OrderStatusPage from './pages/OrderStatusPage';
 import StaffPage from './pages/StaffPage';
+import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
 
 /** Minimal path routing (no react-router), same approach as the Blue Flame site. */
 function resolvePage() {
@@ -23,6 +24,9 @@ function resolvePage() {
   }
   if (path === '/staff') {
     return { page: 'staff' };
+  }
+  if (path === '/privacy-policy' || path === '/privacy') {
+    return { page: 'privacy' };
   }
   return { page: 'home' };
 }
@@ -46,6 +50,7 @@ export default function App() {
   else if (page === 'order') content = <OrderPage />;
   else if (page === 'order-status') content = <OrderStatusPage statusRef={statusRef} />;
   else if (page === 'staff') content = <StaffPage />;
+  else if (page === 'privacy') content = <PrivacyPolicyPage />;
 
   return (
     <>

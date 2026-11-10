@@ -141,9 +141,56 @@ export async function createOrder({ client, source, staff = null, input }) {
  */
 export async function afterOrderCreated({ client, orderId, input, source, origin }) {
   await rememberCustomer({ client, orderId, input, source });
+  // Zelle orders without a pay link can only be paid by typing the recipient,
+  // so queue a Zelle request for staff. With the link, the customer pays
+  // directly and can still ask for a request from their order page.
+  if (input.paymentMethod === 'zelle' && !client.zelle_pay_url) {
+    await requestZelle({ client, orderId, actorType: source === 'staff' ? 'staff' : 'customer', quiet: true });
+  }
   const loaded = await loadOrder(orderId, client.id);
   await notifyOrder({ client, order: loaded.order, items: loaded.items, kind: 'order_placed', origin });
   return loaded;
+}
+
+const ZELLE_ERRORS = {
+  order_not_found: [404, 'Order not found.'],
+  not_awaiting_payment: [409, 'This order is no longer waiting on payment.'],
+  not_client_staff: [403, 'This account is not authorized for this restaurant.'],
+  invalid_action: [400, 'Invalid request.'],
+};
+
+/**
+ * Zelle request hand-off. action 'request' puts the order in the staff
+ * dashboard's Zelle queue; 'sent' records that staff sent the request from
+ * the restaurant's bank app. `quiet` swallows errors (used right after
+ * checkout, where it must never fail the order, e.g. before db/003 is run).
+ */
+export async function requestZelle({ client, orderId, action = 'request', actorType = 'customer', staff = null, quiet = false }) {
+  const { data, error } = await serviceClient().rpc('ordering_zelle_request', {
+    p_client_id: client.id,
+    p_order_id: orderId,
+    p_action: action,
+    p_actor_type: actorType,
+    p_staff: staff ? staff.userId : null,
+    p_staff_name: staff ? staff.displayName : null,
+  });
+  if (error) {
+    if (quiet) {
+      console.error('zelle_request_failed', { orderId, message: error.message });
+      return null;
+    }
+    throw mapRpcError(error, ZELLE_ERRORS);
+  }
+  return data;
+}
+
+function zelleRequestView(order) {
+  return {
+    status: order.zelle_request_status || null,
+    requestedAt: order.zelle_requested_at || null,
+    sentAt: order.zelle_request_sent_at || null,
+    sentBy: order.zelle_request_sent_by_name || null,
+  };
 }
 
 /** Sends a status message (payment confirmed, cancelled) for an existing order. */
@@ -223,6 +270,7 @@ export function customerView(order, items, client) {
     paymentStatus: order.payment_status,
     orderStatus: order.order_status,
     paymentInstructions: awaitingPayment(order) ? paymentInstructions(order, client) : null,
+    zelleRequest: awaitingPayment(order) ? { status: order.zelle_request_status || null, sentAt: order.zelle_request_sent_at || null } : null,
   };
 }
 
@@ -252,6 +300,7 @@ export function staffView(order, items, verifications, client, { origin = '', no
     paymentFlag: order.payment_flag,
     paidAt: order.paid_at,
     orderStatus: order.order_status,
+    zelleRequest: zelleRequestView(order),
     statusUrl: `${origin}${statusPath}`,
     paymentInstructions: awaitingPayment(order)
       ? paymentInstructions(order, client, { statusUrl: `${origin}${statusPath}` })

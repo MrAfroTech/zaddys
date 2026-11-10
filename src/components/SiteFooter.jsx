@@ -43,7 +43,7 @@ export default function SiteFooter() {
           </ul>
         </nav>
       </div>
-      <p className="footer-legal">© {new Date().getFullYear()} {restaurant.fullName}</p>
+      <p className="footer-legal">© {new Date().getFullYear()} {restaurant.fullName} · <a href="/privacy-policy">Privacy Policy</a></p>
     </footer>
   );
 }

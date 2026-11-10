@@ -2,10 +2,10 @@ import { serviceClient } from '../../server/supabase.js';
 import { allowMethods, handle, HttpError, readJson, sendJson } from '../../server/http.js';
 import { getClient } from '../../server/clients.js';
 import { requireStaff } from '../../server/staff-auth.js';
-import { isUuid, loadOrder, loadStaffOrder, mapRpcError, notifyOrderChange, siteOrigin } from '../../server/orders.js';
+import { isUuid, loadOrder, loadStaffOrder, mapRpcError, notifyOrderChange, requestZelle, siteOrigin } from '../../server/orders.js';
 import { notifyOrder } from '../../server/notify.js';
 
-const ACTIONS = ['manual_review', 'return_to_pending', 'cancel', 'complete', 'resend_messages'];
+const ACTIONS = ['manual_review', 'return_to_pending', 'cancel', 'complete', 'resend_messages', 'zelle_request_sent'];
 const MESSAGE_KINDS = ['order_placed', 'payment_confirmed', 'order_cancelled'];
 
 const RPC_ERRORS = {
@@ -23,6 +23,7 @@ const RPC_ERRORS = {
  *            its paid record and is flagged "cancelled_after_payment")
  * complete : closes a paid order (handed to the customer)
  * resend_messages : { kind, channel? } re-sends a customer text/email
+ * zelle_request_sent : staff sent the Zelle request from the bank app
  * Payment status and order status are changed independently; every change is
  * written to order_events with the staff member's identity.
  */
@@ -35,6 +36,12 @@ export default handle(async (req, res) => {
   if (!isUuid(body.orderId)) throw new HttpError(400, 'Invalid order.');
   if (!ACTIONS.includes(body.action)) throw new HttpError(400, 'Unknown action.');
   const reason = typeof body.reason === 'string' ? body.reason.trim().slice(0, 300) : '';
+
+  if (body.action === 'zelle_request_sent') {
+    await requestZelle({ client, orderId: body.orderId, action: 'sent', actorType: 'staff', staff });
+    sendJson(res, 200, { result: 'ok', order: await loadStaffOrder(body.orderId, client, siteOrigin(req)) });
+    return;
+  }
 
   if (body.action === 'resend_messages') {
     if (!MESSAGE_KINDS.includes(body.kind)) throw new HttpError(400, 'Unknown message.');

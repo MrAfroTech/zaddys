@@ -42,7 +42,14 @@ export default function CustomerFields({ values, onChange, errors = {}, idPrefix
         <p className="notify-fine-print">
           {staff
             ? 'Only tick Text message if the customer agreed to get order texts at this number. They can reply STOP to opt out.'
-            : `By choosing text message, you agree to receive order texts from ${restaurant.fullName} at this number (order confirmation, payment and status updates). Msg & data rates may apply. Reply STOP to opt out. Consent is not a condition of purchase.`}
+            : (
+              <>
+                By choosing text message, you agree to receive order and delivery texts from {restaurant.fullName} at this
+                number (order confirmation, payment and status updates). Consent is optional and not a condition of
+                purchase. Message frequency varies. Msg &amp; data rates may apply. Reply STOP to unsubscribe, HELP for
+                help. See our <a href="/privacy-policy" target="_blank" rel="noopener">Privacy Policy</a>.
+              </>
+            )}
         </p>
       </fieldset>
     </div>

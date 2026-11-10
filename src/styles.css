@@ -565,3 +565,31 @@ text-shadow:none;filter:drop-shadow(0 1px 1px rgba(10,20,45,.4));}
 .btn-zelle{background:#6D1ED4;border-color:#6D1ED4;color:#fff;}
 .btn-zelle:hover,.btn-zelle:focus-visible{background:#5a17b2;border-color:#5a17b2;color:#fff;}
 
+/* Staff: Zelle request helper */
+.zelle-request{border:2px solid #6D1ED4;border-radius:10px;padding:12px 14px;margin:12px 0;}
+.zelle-request h4{margin:0 0 6px;color:#6D1ED4;}
+.zelle-steps{margin:6px 0;padding-left:20px;}
+.zelle-fields{list-style:none;margin:6px 0;padding:0;display:grid;gap:6px;}
+.zelle-row{display:grid;grid-template-columns:minmax(110px,auto) 1fr auto;align-items:center;gap:8px;}
+.zelle-label{font-size:13px;opacity:.8;}
+.zelle-value{word-break:break-all;}
+.zelle-note{font-size:13px;opacity:.8;margin:6px 0 0;}
+
+/* Customer: ask for a Zelle request */
+.zelle-ask{margin:12px 0;padding:12px 14px;border-radius:10px;background:#f4eefc;}
+.zelle-ask p{margin:0 0 8px;}
+.zelle-ask-status{color:#4b148f;font-weight:600;margin:0 !important;}
+.staff-badge{display:inline-block;min-width:20px;margin-left:6px;padding:1px 6px;border-radius:999px;background:#6D1ED4;color:#fff;font-size:12px;font-weight:700;text-align:center;}
+.zelle-alert{display:block;width:100%;text-align:left;cursor:pointer;border:2px solid #6D1ED4;background:#f4eefc;color:#4b148f;font-weight:700;margin:10px 0;}
+.zelle-banner{margin:6px 0;padding:8px 12px;border-radius:8px;background:#f4eefc;color:#4b148f;font-weight:700;}
+.pay-zelle-name{margin:4px 0 6px;font-size:14px;}
+.pay-zelle-alt{margin:6px 0;font-size:14px;opacity:.9;word-break:break-word;}
+
+/* Privacy policy */
+.legal-inner{max-width:760px;}
+.legal-inner h2{font-size:22px;margin:28px 0 8px;}
+.legal-inner p,.legal-inner li{line-height:1.6;}
+.legal-inner ul{padding-left:22px;}
+.legal-meta{opacity:.75;margin-top:-6px;}
+.footer-legal a{color:inherit;}
+

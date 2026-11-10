@@ -10,8 +10,10 @@ import { payments } from '../../data/restaurant';
  * for the bank app. Nothing here
  * confirms payment. `forStaff` adds copy / open-in-Messages tools.
  */
-export default function PaymentInstructions({ instructions, forStaff = false, customerPhone = '' }) {
+export default function PaymentInstructions({ instructions, forStaff = false, customerPhone = '', zelleRequest = null, onRequestZelle = null }) {
   const [copied, setCopied] = useState('');
+  const [requesting, setRequesting] = useState(false);
+  const [requestError, setRequestError] = useState('');
   const [handleCopied, setHandleCopied] = useState(false);
   const options = instructions?.configured ? instructions.options || [] : [];
   const [selectedId, setSelectedId] = useState(options[0]?.id || null);
@@ -66,7 +68,7 @@ export default function PaymentInstructions({ instructions, forStaff = false, cu
         </div>
       )}
 
-      {selected?.payUrl && (
+      {selected?.id === 'cash_app' && selected.payUrl && (
         <div className="pay-cashapp">
           <a href={selected.payUrl} className="btn btn-primary btn-lg btn-cashapp" target="_blank" rel="noopener noreferrer">
             Pay {instructions.amountDisplay} with Cash App
@@ -85,21 +87,86 @@ export default function PaymentInstructions({ instructions, forStaff = false, cu
           )}
         </div>
       )}
-      {selected && !selected.payUrl && (
+      {selected?.id === 'zelle' && (
         <div className="pay-zelle">
-          <p className="pay-zelle-to">
-            Zelle to <strong>{selected.handle}</strong>
-          </p>
-          <div className="btn-row">
-            <button type="button" className="btn btn-primary btn-lg btn-zelle" onClick={copyHandle}>
-              {handleCopied ? 'Copied — now open your bank app' : 'Copy Zelle email'}
-            </button>
-          </div>
-          {payments.zelleQr && (
-            <figure className="pay-qr">
-              <img src={payments.zelleQr} width="160" height="160" alt={`Zelle QR code for ${selected.handle}`} />
-              <figcaption>Scan in your bank app’s Zelle screen.</figcaption>
-            </figure>
+          {selected.payUrl ? (
+            <>
+              <div className="pay-cashapp">
+                <a href={selected.payUrl} className="btn btn-primary btn-lg btn-zelle" target="_blank" rel="noopener noreferrer">
+                  Pay {instructions.amountDisplay} with Zelle
+                </a>
+                {payments.zelleQr && (
+                  <figure className="pay-qr">
+                    <a href={selected.payUrl} target="_blank" rel="noopener noreferrer">
+                      <img src={payments.zelleQr} width="160" height="160" alt="Zelle QR code for Zaddys" />
+                    </a>
+                    <figcaption>
+                      {forStaff
+                        ? `Customer can scan this in their bank app's Zelle screen. They enter ${instructions.amountDisplay} and ${instructions.orderNumber} in the memo.`
+                        : `Or scan in your bank app's Zelle screen. Enter ${instructions.amountDisplay} and ${instructions.orderNumber} in the memo.`}
+                    </figcaption>
+                  </figure>
+                )}
+              </div>
+              {selected.recipientName && (
+                <p className="pay-zelle-name">Your bank will show the recipient as <strong>{selected.recipientName}</strong>.</p>
+              )}
+              <p className="pay-zelle-alt">
+                Bank not listed? In your bank app, send with Zelle to <strong>{selected.handle}</strong>{' '}
+                <button type="button" className="btn btn-outline btn-sm" onClick={copyHandle}>
+                  {handleCopied ? 'Copied' : 'Copy'}
+                </button>
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="pay-zelle-to">
+                Zelle to <strong>{selected.handle}</strong>
+              </p>
+              <div className="btn-row">
+                <button type="button" className="btn btn-primary btn-lg btn-zelle" onClick={copyHandle}>
+                  {handleCopied ? 'Copied — now open your bank app' : 'Copy Zelle email'}
+                </button>
+              </div>
+            </>
+          )}
+          {!forStaff && onRequestZelle && (
+            <div className="zelle-ask">
+              {!zelleRequest?.status && (
+                <>
+                  <p>Prefer a request? We can send a Zelle request to the phone number or email on your order, and you just tap Pay in your bank app.</p>
+                  <button
+                    type="button"
+                    className="btn btn-outline"
+                    disabled={requesting}
+                    onClick={async () => {
+                      setRequesting(true);
+                      setRequestError('');
+                      try {
+                        await onRequestZelle();
+                      } catch (err) {
+                        setRequestError(err.message);
+                      } finally {
+                        setRequesting(false);
+                      }
+                    }}
+                  >
+                    {requesting ? 'Sending…' : 'Send me a Zelle request'}
+                  </button>
+                  {requestError && <p className="field-error" role="alert">{requestError}</p>}
+                </>
+              )}
+              {zelleRequest?.status === 'requested' && (
+                <p className="zelle-ask-status" role="status">
+                  ✓ Zelle request on its way. Our staff will send it to the phone number or email on your order shortly. Watch for it in your bank app and tap Pay.
+                </p>
+              )}
+              {zelleRequest?.status === 'sent' && (
+                <p className="zelle-ask-status" role="status">
+                  ✓ Zelle request sent{zelleRequest.sentAt ? ` at ${new Date(zelleRequest.sentAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : ''}. Open your bank app’s Zelle requests and tap Pay.
+                </p>
+              )}
+            </div>
           )}
         </div>
       )}

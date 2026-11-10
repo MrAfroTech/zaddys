@@ -63,7 +63,7 @@ export function compose({ client, order, items, kind, statusUrl }) {
   const first = order.customer_name.split(/\s+/)[0];
   const pay = kind === 'order_placed' ? paymentInstructions(order, client) : null;
   const options = pay?.configured ? pay.options || [] : [];
-  const cashApp = options.find((o) => o.payUrl) || null;
+  const cashApp = options.find((o) => o.id === 'cash_app') || null;
   const zelle = options.find((o) => o.id === 'zelle') || null;
 
   let subject;
@@ -84,9 +84,9 @@ export function compose({ client, order, items, kind, statusUrl }) {
     payLines = ['', `How to pay (${total}, put ${num} in the note/memo):`];
     if (!options.length) payLines.push(...(pay?.steps || []));
     for (const o of options) {
-      payLines.push(o.payUrl ? `- Cash App: ${o.payUrl}` : `- Zelle: send to ${o.handle} from your bank app`);
+      payLines.push(o.id === 'cash_app' ? `- Cash App: ${o.payUrl}` : o.payUrl ? `- Zelle: ${o.payUrl}` : `- Zelle: send to ${o.handle} from your bank app`);
     }
-    const smsPay = options.map((o) => (o.payUrl ? `Cash App: ${o.payUrl}` : `Zelle: ${o.handle}`)).join(' or ');
+    const smsPay = options.map((o) => (o.id === 'cash_app' ? `Cash App: ${o.payUrl}` : `Zelle: ${o.payUrl || o.handle}`)).join(' or ');
     smsBody = options.length
       ? `${name}: order ${num} received, ${total}. Pay by ${smsPay} (add ${num} in the note).`
       : `${name}: order ${num} received, ${total}. We will contact you with how to pay.`;
@@ -113,19 +113,25 @@ export function compose({ client, order, items, kind, statusUrl }) {
     ? `<p style="margin:0 0 12px"><a href="${escapeHtml(cashApp.payUrl)}" style="display:inline-block;background:#00D64F;color:#ffffff;font-weight:bold;font-size:17px;text-decoration:none;padding:14px 26px;border-radius:10px">Pay ${escapeHtml(total)} with Cash App</a></p>
 <p style="margin:0 0 10px">Opens ${escapeHtml(cashApp.handle)} with ${escapeHtml(total)} filled in. Please add <strong>${escapeHtml(num)}</strong> in the note.</p>`
     : '';
+  const shownAs = zelle?.recipientName ? ` Your bank will show it as <strong>${escapeHtml(zelle.recipientName)}</strong>.` : '';
   const zelleHtml = zelle
-    ? `<div style="margin:14px 0 6px;padding:12px 14px;border:2px solid #6D1ED4;border-radius:10px">
+    ? zelle.payUrl
+      ? `<div style="margin:14px 0 6px;padding:12px 14px;border:2px solid #6D1ED4;border-radius:10px">
+<p style="margin:0 0 10px"><a href="${escapeHtml(zelle.payUrl)}" style="display:inline-block;background:#6D1ED4;color:#ffffff;font-weight:bold;font-size:17px;text-decoration:none;padding:14px 26px;border-radius:10px">Pay ${escapeHtml(total)} with Zelle</a></p>
+<p style="margin:0">Choose your bank and it opens Zelle with ${escapeHtml(name)} as the recipient.${shownAs} Enter ${escapeHtml(total)} and memo <strong>${escapeHtml(num)}</strong>.</p></div>`
+      : `<div style="margin:14px 0 6px;padding:12px 14px;border:2px solid #6D1ED4;border-radius:10px">
 <p style="margin:0 0 4px;font-weight:bold;color:#6D1ED4">Pay with Zelle</p>
-<p style="margin:0">In your bank app, choose Send with Zelle to <strong>${escapeHtml(zelle.handle)}</strong> (${escapeHtml(name)}), amount ${escapeHtml(total)}, memo <strong>${escapeHtml(num)}</strong>.</p></div>`
+<p style="margin:0">In your bank app, choose Send with Zelle to <strong>${escapeHtml(zelle.handle)}</strong> (${escapeHtml(name)}), amount ${escapeHtml(total)}, memo <strong>${escapeHtml(num)}</strong>.${shownAs}</p></div>`
     : '';
-  // Cash App: one-tap link (amount filled in). Zelle has no payment link, so
-  // it gets the recipient to send to. (QR codes live on the order page.) The method
+  // Cash App: one-tap link (amount filled in). Zelle: the link from the
+  // restaurant's Zelle QR code when set (recipient filled in), else the
+  // recipient to send to. (QR codes live on the order page.) The method
   // the customer picked comes first.
   const payHtml = !payLines.length
     ? ''
     : `<h3 style="margin:18px 0 8px;font-size:17px">How to pay</h3>${
       options.length
-        ? options.map((o) => (o.payUrl ? cashAppHtml : zelleHtml)).join(options.length > 1 ? '<p style="margin:10px 0;color:#666">— or —</p>' : '')
+        ? options.map((o) => (o.id === 'cash_app' ? cashAppHtml : zelleHtml)).join(options.length > 1 ? '<p style="margin:10px 0;color:#666">— or —</p>' : '')
         : (pay?.steps || []).map((x) => para(x)).join('')
     }<p style="margin:10px 0 0;color:#666;font-size:13px">Your order stays “awaiting payment” until our staff see your payment arrive.</p>`;
   const html = `<!doctype html><html><body style="font-family:Arial,sans-serif;font-size:15px;line-height:1.5;color:#1d1d1d">${

@@ -10,13 +10,16 @@ const VIEWS = {
   awaiting: (q) => q.eq('order_status', 'open').in('payment_status', ['pending', 'manual_review']).order('created_at', { ascending: true }),
   // Paid orders still open (not yet handed over / closed).
   paid: (q) => q.eq('order_status', 'open').eq('payment_status', 'paid').order('paid_at', { ascending: true }),
+  // Customers waiting for a Zelle request from the restaurant's bank app, oldest first.
+  zelle: (q) => q.eq('order_status', 'open').in('payment_status', ['pending', 'manual_review']).eq('zelle_request_status', 'requested').order('zelle_requested_at', { ascending: true }),
   // Everything recent, newest first.
   recent: (q) => q.order('created_at', { ascending: false }),
 };
 
 /**
  * Staff only.
- * GET  /api/staff/orders?view=awaiting|paid|recent — order list with items and verification history.
+ * GET  /api/staff/orders?view=awaiting|zelle|paid|recent — order list with items and verification history.
+ * GET  /api/staff/orders?view=counts — { counts: { zelle } } for the dashboard badge (polled).
  * POST /api/staff/orders — employee-assisted order; same validation, pricing
  *      and order creation as online checkout, recorded with the staff member.
  *      Texts/emails the customer if they agreed (customer.notifySms/notifyEmail).
@@ -35,8 +38,20 @@ export default handle(async (req, res) => {
     return;
   }
 
-  const view = VIEWS[req.query?.view] ? req.query.view : 'awaiting';
   const supabase = serviceClient();
+  if (req.query?.view === 'counts') {
+    const { count, error } = await VIEWS.zelle(supabase.from('client_orders').select('id', { count: 'exact', head: true }).eq('client_id', client.id));
+    if (error) {
+      // Before db/003 is applied the column doesn't exist; report no queue.
+      console.error('zelle_count_failed', { message: error.message });
+      sendJson(res, 200, { counts: { zelle: 0 } });
+      return;
+    }
+    sendJson(res, 200, { counts: { zelle: count || 0 } });
+    return;
+  }
+
+  const view = VIEWS[req.query?.view] ? req.query.view : 'awaiting';
   const { data: orders, error } = await VIEWS[view](supabase.from('client_orders').select('*').eq('client_id', client.id)).limit(50);
   if (error) throw error;
   if (!orders.length) {

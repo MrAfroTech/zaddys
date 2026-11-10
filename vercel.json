@@ -5,6 +5,14 @@
   "framework": null,
   "rewrites": [
     {
+      "source": "/privacy-policy",
+      "destination": "/privacy-policy.html"
+    },
+    {
+      "source": "/privacy",
+      "destination": "/privacy-policy.html"
+    },
+    {
       "source": "/((?!api/|images/|assets/).*)",
       "destination": "/index.html"
     }

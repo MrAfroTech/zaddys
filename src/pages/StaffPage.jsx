@@ -4,6 +4,7 @@ import { groupByCategory } from '../lib/menuGroups';
 import CartPanel from '../components/order/CartPanel';
 import CustomerFields, { customerPayload, EMPTY_CUSTOMER, validateCustomer } from '../components/order/CustomerFields';
 import NotificationStatus from '../components/order/NotificationStatus';
+import ZelleRequestHelper from '../components/order/ZelleRequestHelper';
 import PaymentMethodPicker from '../components/order/PaymentMethodPicker';
 import OrderLines from '../components/order/OrderLines';
 import PaymentInstructions from '../components/order/PaymentInstructions';
@@ -13,8 +14,12 @@ import { CART_LIMITS, useCart } from '../lib/useCart';
 import { formatCents, parseDollarsToCents } from '../lib/money';
 import { getAccessToken, staffAuthConfigured, supabase } from '../lib/staffAuth';
 
+// The dashboard re-checks the Zelle queue and open lists this often.
+const POLL_MS = 20_000;
+
 const TABS = [
   { id: 'new', label: 'New order' },
+  { id: 'zelle', label: 'Zelle requests' },
   { id: 'awaiting', label: 'Awaiting payment' },
   { id: 'paid', label: 'Paid & open' },
   { id: 'recent', label: 'Recent' },
@@ -31,6 +36,7 @@ export default function StaffPage() {
   const [staff, setStaff] = useState(null);
   const [authError, setAuthError] = useState('');
   const [tab, setTab] = useState('new');
+  const [zelleCount, setZelleCount] = useState(0);
 
   useEffect(() => {
     document.title = 'Staff | Zaddys';
@@ -55,6 +61,25 @@ export default function StaffPage() {
         setAuthError(err.message);
       });
   }, [session]);
+
+  // Signal for staff: how many customers are waiting on a Zelle request.
+  useEffect(() => {
+    if (!staff) return undefined;
+    let live = true;
+    const check = () => staffRequest('/api/staff/orders?view=counts')
+      .then((data) => live && setZelleCount(data.counts?.zelle || 0))
+      .catch(() => {});
+    check();
+    const id = window.setInterval(check, POLL_MS);
+    return () => {
+      live = false;
+      window.clearInterval(id);
+    };
+  }, [staff]);
+
+  useEffect(() => {
+    document.title = zelleCount ? `(${zelleCount}) Zelle requests | Staff | Zaddys` : 'Staff | Zaddys';
+  }, [zelleCount]);
 
   if (!staffAuthConfigured) {
     return (
@@ -92,11 +117,17 @@ export default function StaffPage() {
                 onClick={() => setTab(t.id)}
               >
                 {t.label}
+                {t.id === 'zelle' && zelleCount > 0 && <span className="staff-badge" aria-label={`${zelleCount} waiting`}>{zelleCount}</span>}
               </button>
             ))}
           </div>
+          {zelleCount > 0 && tab !== 'zelle' && (
+            <button type="button" className="notice zelle-alert" onClick={() => setTab('zelle')}>
+              {zelleCount === 1 ? '1 customer is' : `${zelleCount} customers are`} waiting for a Zelle request. Open the queue →
+            </button>
+          )}
           <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
-            {tab === 'new' ? <NewOrder /> : <OrderList view={tab} key={tab} />}
+            {tab === 'new' ? <NewOrder /> : <OrderList view={tab} key={tab} onQueueChange={(n) => tab === 'zelle' && setZelleCount(n)} />}
           </div>
         </>
       )}
@@ -257,6 +288,15 @@ function NewOrder() {
             if (data.order) setCreated(data.order);
           }}
         />
+        {created.paymentMethod === 'zelle' && created.paymentStatus === 'pending' && (
+          <ZelleRequestHelper
+            order={created}
+            onMarkSent={created.zelleRequest?.status === 'sent' ? null : async () => {
+              const data = await staffRequest('/api/staff/order-actions', { method: 'POST', body: { orderId: created.id, action: 'zelle_request_sent' } });
+              if (data.order) setCreated(data.order);
+            }}
+          />
+        )}
         <PaymentInstructions instructions={created.paymentInstructions} forStaff customerPhone={created.customer.phone} />
         <button type="button" className="btn btn-primary" onClick={startAnother}>Start another order</button>
       </div>
@@ -325,7 +365,7 @@ const RESULT_MESSAGES = {
   additional_payment: 'Additional payment recorded and flagged as a possible duplicate payment. No refund was issued.',
 };
 
-function OrderList({ view }) {
+function OrderList({ view, onQueueChange }) {
   const [state, setState] = useState({ status: 'loading', orders: [], error: '' });
   const [message, setMessage] = useState('');
 
@@ -342,6 +382,17 @@ function OrderList({ view }) {
     load();
   }, [load]);
 
+  // Lists that change as customers order and pay refresh themselves.
+  useEffect(() => {
+    if (view !== 'zelle' && view !== 'awaiting') return undefined;
+    const id = window.setInterval(load, POLL_MS);
+    return () => window.clearInterval(id);
+  }, [view, load]);
+
+  useEffect(() => {
+    if (view === 'zelle' && state.status === 'ready') onQueueChange?.(state.orders.length);
+  }, [view, state, onQueueChange]);
+
   const done = (text) => {
     setMessage(text);
     load();
@@ -357,7 +408,9 @@ function OrderList({ view }) {
         <button type="button" className="btn btn-outline" onClick={load}>Refresh</button>
       </div>
       {state.error && <p className="field-error" role="alert">{state.error}</p>}
-      {state.orders.length === 0 && <p className="cart-empty">No orders here.</p>}
+      {state.orders.length === 0 && (
+        <p className="cart-empty">{view === 'zelle' ? 'No one is waiting for a Zelle request.' : 'No orders here.'}</p>
+      )}
       <ul className="staff-order-list">
         {state.orders.map((o) => <StaffOrderCard key={o.id} order={o} onDone={done} />)}
       </ul>
@@ -366,7 +419,8 @@ function OrderList({ view }) {
 }
 
 function StaffOrderCard({ order, onDone }) {
-  const [panel, setPanel] = useState(null); // 'verify' | 'additional' | 'cancel' | 'instructions'
+  const zelleWaiting = order.zelleRequest?.status === 'requested';
+  const [panel, setPanel] = useState(zelleWaiting ? 'zelle' : null); // 'verify' | 'additional' | 'cancel' | 'instructions' | 'zelle'
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const awaiting = order.orderStatus === 'open' && ['pending', 'manual_review'].includes(order.paymentStatus);
@@ -398,6 +452,17 @@ function StaffOrderCard({ order, onDone }) {
         {new Date(order.createdAt).toLocaleString()} · {order.source === 'staff' ? 'Taken by staff' : 'Online'} ·{' '}
         {order.customer.name} · <a href={`tel:${order.customer.phone.replace(/[^\d+]/g, '')}`}>{order.customer.phone}</a>
       </p>
+      {zelleWaiting && (
+        <p className="zelle-banner" role="note">
+          Customer is waiting for a Zelle request (asked {new Date(order.zelleRequest.requestedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}).
+        </p>
+      )}
+      {order.zelleRequest?.status === 'sent' && (
+        <p className="staff-order-meta">
+          Zelle request sent {new Date(order.zelleRequest.sentAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+          {order.zelleRequest.sentBy ? ` by ${order.zelleRequest.sentBy}` : ''}.
+        </p>
+      )}
       <OrderLines order={order} />
       <NotificationStatus
         order={order}
@@ -430,6 +495,7 @@ function StaffOrderCard({ order, onDone }) {
           <>
             <button type="button" className="btn btn-primary" onClick={() => setPanel(panel === 'verify' ? null : 'verify')}>Verify payment</button>
             <button type="button" className="btn btn-outline" onClick={() => setPanel(panel === 'instructions' ? null : 'instructions')}>Payment message</button>
+            <button type="button" className={`btn ${order.paymentMethod === 'zelle' ? 'btn-zelle' : 'btn-outline'}`} onClick={() => setPanel(panel === 'zelle' ? null : 'zelle')}>Zelle request</button>
             {order.paymentStatus === 'pending' && (
               <button type="button" className="btn btn-outline" disabled={busy} onClick={() => action('manual_review', 'Flagged for review by staff')}>Needs review</button>
             )}
@@ -449,6 +515,13 @@ function StaffOrderCard({ order, onDone }) {
         )}
       </div>
 
+      {panel === 'zelle' && (
+        <ZelleRequestHelper
+          order={order}
+          busy={busy}
+          onMarkSent={order.zelleRequest?.status === 'sent' ? null : () => action('zelle_request_sent', null)}
+        />
+      )}
       {panel === 'instructions' && (
         <PaymentInstructions instructions={order.paymentInstructions} forStaff customerPhone={order.customer.phone} />
       )}

@@ -31,7 +31,16 @@ export function paymentMethods(client) {
   const zelle = (client?.zelle_recipient || '').trim();
   if (zelle) {
     // Zelle has no universal payment link; customers send from their own bank app.
-    methods.push({ id: 'zelle', label: 'Zelle', handle: zelle, url: null });
+    methods.push({
+      id: 'zelle',
+      label: 'Zelle',
+      handle: zelle,
+      url: null,
+      // Link from the restaurant's Zelle QR code: opens Zelle's bank picker with
+      // the restaurant as recipient. Amount can't be pre-filled.
+      zelleUrl: client.zelle_pay_url || null,
+      recipientName: client.zelle_recipient_name || null,
+    });
   }
   return methods;
 }
@@ -44,20 +53,26 @@ export function cashAppPayUrl(tag, cents) {
 /** How to pay one order with one method: steps plus the one-tap link, if any. */
 function methodOption(method, order, client) {
   const amount = formatCents(order.total_cents);
-  const payUrl = method.id === 'cash_app' ? cashAppPayUrl(method.handle, order.total_cents) : null;
+  const payUrl = method.id === 'cash_app' ? cashAppPayUrl(method.handle, order.total_cents) : method.zelleUrl || null;
+  const shownAs = method.recipientName ? ` Your bank will show the recipient as ${method.recipientName}.` : '';
   const steps = method.id === 'cash_app'
     ? [
         `Tap Pay with Cash App. It opens ${method.handle} with ${amount} filled in.`,
         `Add your order number ${order.order_number} in the note ("For"), then pay.`,
       ]
-    : [
-        'Open your bank’s app (or the Zelle app) and choose Send with Zelle.',
-        `Send to ${method.handle} (${client.name}).`,
-        `Send exactly ${amount}.`,
-        `Put your order number ${order.order_number} in the memo.`,
-      ];
+    : payUrl
+      ? [
+          `Tap Pay with Zelle (or scan the QR code) and choose your bank. It opens Zelle with ${client.name} as the recipient.${shownAs}`,
+          `Enter exactly ${amount} and put your order number ${order.order_number} in the memo, then send.`,
+        ]
+      : [
+          'Open your bank’s app (or the Zelle app) and choose Send with Zelle.',
+          `Send to ${method.handle} (${client.name}).${shownAs}`,
+          `Send exactly ${amount}.`,
+          `Put your order number ${order.order_number} in the memo.`,
+        ];
   steps.push('Your order stays "awaiting payment confirmation" until our staff see your payment arrive.');
-  return { id: method.id, label: method.label, handle: method.handle, url: method.url, payUrl, steps };
+  return { id: method.id, label: method.label, handle: method.handle, url: method.url, payUrl, recipientName: method.recipientName || null, steps };
 }
 
 /**
@@ -97,7 +112,7 @@ export function paymentInstructions(order, client, { statusUrl } = {}) {
   const messageLines = [
     `${client.name} order ${order.order_number}`,
     `Amount due: ${amount}`,
-    ...options.map((o) => (o.payUrl ? `Pay with Cash App: ${o.payUrl}` : `Pay with Zelle to ${o.handle}`)),
+    ...options.map((o) => (o.id === 'cash_app' ? `Pay with Cash App: ${o.payUrl}` : `Pay with Zelle: ${o.payUrl || o.handle}`)),
     `Please put ${order.order_number} in the payment note.`,
     'We will confirm once we see your payment.',
   ];

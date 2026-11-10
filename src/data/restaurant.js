@@ -29,12 +29,13 @@ export const restaurant = {
 
 /**
  * Payment extras shown on the order page. `cashAppQr` is the restaurant's
- * official Cash App QR code (exported from Cash App). TODO(zaddys): add
- * `zelleQr` when Zaddys sends their Zelle QR code.
+ * official Cash App QR code (exported from Cash App); `zelleQr` is the Zelle
+ * QR code from the owner's bank app. Tapping either opens the same link as
+ * the pay button (clients.zelle_pay_url for Zelle).
  */
 export const payments = {
   cashAppQr: '/images/cashapp-qr-zaddysintampa.svg',
-  zelleQr: null,
+  zelleQr: '/images/zelle-qr-zaddys.png',
 };
 
 /**

@@ -66,7 +66,16 @@ export default function OrderStatusPage({ statusRef }) {
                 our Cash App or Zelle account. You don’t need to send a screenshot. This page checks for updates automatically.
               </p>
             )}
-            {order.paymentInstructions && <PaymentInstructions instructions={order.paymentInstructions} />}
+            {order.paymentInstructions && (
+              <PaymentInstructions
+                instructions={order.paymentInstructions}
+                zelleRequest={order.zelleRequest}
+                onRequestZelle={async () => {
+                  const data = await apiRequest('/api/order-status', { method: 'POST', body: { ref: statusRef, action: 'request_zelle' } });
+                  setState({ status: 'ready', order: data.order, error: '' });
+                }}
+              />
+            )}
             <h2 className="order-status-sub">Items</h2>
             <OrderLines order={order} />
             {order.pricingNote && <p className="order-status-note">{order.pricingNote}</p>}
