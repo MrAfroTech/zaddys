@@ -13,6 +13,7 @@ import { fileURLToPath } from 'node:url';
 const root = fileURLToPath(new URL('..', import.meta.url));
 const PAGES = [
   { file: 'privacy-policy.html', component: 'src/pages/PrivacyPolicyPage.jsx', title: 'Privacy Policy | Zaddys Subs & Deli Shop' },
+  { file: 'terms-of-service.html', component: 'src/pages/TermsOfServicePage.jsx', title: 'Terms of Service | Zaddys Subs & Deli Shop' },
 ];
 
 const shell = readFileSync(`${root}dist/index.html`, 'utf8');

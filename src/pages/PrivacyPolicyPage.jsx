@@ -88,6 +88,8 @@ export default function PrivacyPolicyPage() {
         <h2>Children</h2>
         <p>This site is not directed to children under 13, and we do not knowingly collect their information.</p>
 
+        <p>See also our <a href="/terms-of-service">Terms of Service</a>, including the text message program terms.</p>
+
         <h2>Changes</h2>
         <p>If we change this policy, we will post the new version here with a new effective date.</p>
 

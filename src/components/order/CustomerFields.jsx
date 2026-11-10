@@ -47,7 +47,8 @@ export default function CustomerFields({ values, onChange, errors = {}, idPrefix
                 By choosing text message, you agree to receive order and delivery texts from {restaurant.fullName} at this
                 number (order confirmation, payment and status updates). Consent is optional and not a condition of
                 purchase. Message frequency varies. Msg &amp; data rates may apply. Reply STOP to unsubscribe, HELP for
-                help. See our <a href="/privacy-policy" target="_blank" rel="noopener">Privacy Policy</a>.
+                help. See our <a href="/terms-of-service" target="_blank" rel="noopener">Terms of Service</a> and{' '}
+                <a href="/privacy-policy" target="_blank" rel="noopener">Privacy Policy</a>.
               </>
             )}
         </p>
