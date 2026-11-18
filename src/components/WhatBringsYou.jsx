@@ -4,7 +4,13 @@ const OPTIONS = [
   { id: 'hungry', emoji: '🥪', title: "I'm hungry", text: 'See the menu.', link: { href: '/menu' } },
   { id: 'deal', emoji: '🌭', title: 'I want a deal', text: 'Glizzy Deal and the Cuban Special.', link: { href: '#deals' } },
   { id: 'order', emoji: '📞', title: 'Order ahead', text: `${ordering.label}: ${restaurant.phone}.`, link: orderLinkProps },
-  { id: 'visit', emoji: '📍', title: 'Find the shop', text: 'E. Hillsborough Ave, Tampa.', link: { href: '#visit' } },
+  {
+    id: 'visit',
+    emoji: '📍',
+    title: 'Find the shop',
+    text: `${restaurant.address.street}, ${restaurant.address.city}, ${restaurant.address.state} ${restaurant.address.zip}.`,
+    link: { href: '#visit' },
+  },
 ];
 
 export default function WhatBringsYou() {
