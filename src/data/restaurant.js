@@ -18,6 +18,8 @@ export const restaurant = {
   phoneHref: 'tel:+18139823922',
   email: 'zaddysintampa@gmail.com',
   website: 'https://zaddysintampa.com',
+  // Canonical address of this site (search engines, sitemap, links in messages).
+  siteUrl: 'https://zaddys.seamlessly.us',
   social: {
     instagram: 'https://www.instagram.com/zaddysintampa',
     facebook: 'https://www.facebook.com/zaddysintampa',

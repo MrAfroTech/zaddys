@@ -21,6 +21,7 @@ import { formatCents } from './money.js';
 import { paymentInstructions } from './payment-methods.js';
 import { orderStatusPath } from './order-links.js';
 import { markSmsOptedOut, phoneE164 } from './customers.js';
+import { loyaltyPoints, loyaltyView } from './loyalty.js';
 
 const SEND_TIMEOUT_MS = 8000;
 // A row stuck in 'sending' longer than this (crashed function) may be retried.
@@ -56,7 +57,7 @@ function channelBlocker(client, channel) {
 const escapeHtml = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 
 /** Subject/text/html for email and a short body for SMS. */
-export function compose({ client, order, items, kind, statusUrl }) {
+export function compose({ client, order, items, kind, statusUrl, loyalty = null }) {
   const name = client.name;
   const num = order.order_number;
   const total = formatCents(order.total_cents);
@@ -94,17 +95,34 @@ export function compose({ client, order, items, kind, statusUrl }) {
     subject = `${name} order ${num} — payment received`;
     lines = [`Hi ${first}, we received your payment of ${total} for order ${num}. Thank you!`];
     smsBody = `${name}: payment of ${total} received for order ${num}. Thank you!`;
+    if (loyalty) {
+      const ready = loyalty.available > 0
+        ? `You've earned ${loyalty.reward}! Ask for it at the counter on your next visit.`
+        : `Rewards: ${loyalty.progress} of ${loyalty.required} orders toward ${loyalty.reward}.`;
+      lines.push('', ready);
+      smsBody += ` ${ready}`;
+    }
+  } else if (kind === 'review_request') {
+    subject = `How was your ${name} order?`;
+    lines = [
+      `Hi ${first}, thanks for ordering from ${name}!`,
+      '',
+      'If you enjoyed it, would you leave us a quick Google review? It takes a minute and really helps a local shop.',
+      '',
+      `Leave a review: ${client.google_review_url}`,
+    ];
+    smsBody = `${name}: thanks for your order! Mind leaving us a quick Google review? ${client.google_review_url}`;
   } else {
     subject = `${name} order ${num} — cancelled`;
     lines = [`Hi ${first}, your order ${num} has been cancelled. If you have questions, reply to this email or call the shop.`];
     smsBody = `${name}: order ${num} was cancelled. Questions? Please call the shop.`;
   }
 
-  const statusLines = statusUrl ? ['', `Order status: ${statusUrl}`] : [];
-  if (statusUrl) smsBody += ` Status: ${statusUrl}`;
+  const statusLines = statusUrl && kind !== 'review_request' ? ['', `Order status: ${statusUrl}`] : [];
+  if (statusLines.length) smsBody += ` Status: ${statusUrl}`;
   smsBody += ' Reply STOP to opt out.';
 
-  const text = [...lines, ...payLines, ...statusLines].join('\n');
+  const text = [...lines, ...payLines, ...statusLines, '', `${name}`, 'Online ordering powered by Concier.io'].join('\n');
 
   const para = (l) => (l ? `<p style="margin:0 0 6px">${escapeHtml(l).replace(/(https?:\/\/\S+)/g, '<a href="$1">$1</a>')}</p>` : '<br>');
   // One-tap Cash App button (amount filled in) plus a QR code for people
@@ -136,7 +154,7 @@ export function compose({ client, order, items, kind, statusUrl }) {
     }<p style="margin:10px 0 0;color:#666;font-size:13px">Your order stays “awaiting payment” until our staff see your payment arrive.</p>`;
   const html = `<!doctype html><html><body style="font-family:Arial,sans-serif;font-size:15px;line-height:1.5;color:#1d1d1d">${
     lines.map(para).join('')
-  }${payHtml}${statusLines.map(para).join('')}<p style="margin-top:18px;color:#666;font-size:13px">${escapeHtml(name)}</p></body></html>`;
+  }${payHtml}${statusLines.map(para).join('')}<p style="margin-top:18px;color:#666;font-size:13px">${escapeHtml(name)}</p><p style="margin-top:14px;color:#999;font-size:12px">Online ordering powered by <a href="https://www.concier.io/restaurants" style="color:#999">Concier.io</a></p></body></html>`;
 
   return { subject, text, html, smsBody };
 }
@@ -241,12 +259,18 @@ async function customerOptedOut(client, order) {
 export async function notifyOrder({ client, order, items, kind, origin = '', force = false, channels = null }) {
   const wanted = [];
   if (order.notify_email && order.customer_email) wanted.push(['email', order.customer_email]);
-  if (order.notify_sms) wanted.push(['sms', phoneE164(order.customer_phone)]);
+  // Review requests go by email only: the SMS registration covers order notifications.
+  if (order.notify_sms && kind !== 'review_request') wanted.push(['sms', phoneE164(order.customer_phone)]);
   const targets = wanted.filter(([ch]) => !channels || channels.includes(ch));
   if (!targets.length) return;
 
   const statusUrl = origin ? `${origin}${orderStatusPath(order.id)}` : '';
-  const msg = compose({ client, order, items, kind, statusUrl });
+  let loyalty = null;
+  if (kind === 'payment_confirmed' && order.customer_id) {
+    const points = await loyaltyPoints(client, [order.customer_id]);
+    if (order.customer_id in points) loyalty = loyaltyView(client, points[order.customer_id]);
+  }
+  const msg = compose({ client, order, items, kind, statusUrl, loyalty });
 
   await Promise.all(targets.map(async ([channel, recipient]) => {
     try {

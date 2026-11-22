@@ -5,6 +5,7 @@ import { paymentInstructions } from './payment-methods.js';
 import { orderStatusPath } from './order-links.js';
 import { notificationView, notificationsByOrder, notifyOrder } from './notify.js';
 import { rememberCustomer } from './customers.js';
+import { loyaltyPoints, loyaltyView } from './loyalty.js';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const IDEMPOTENCY_RE = /^[A-Za-z0-9-]{16,80}$/;
@@ -203,8 +204,11 @@ export async function notifyOrderChange({ client, orderId, kind, origin }) {
 export async function loadStaffOrder(orderId, client, origin) {
   const loaded = await loadOrder(orderId, client.id);
   if (!loaded) return null;
-  const notes = await notificationsByOrder(client.id, [orderId]);
-  return staffView(loaded.order, loaded.items, [], client, { origin, notifications: notes[orderId] });
+  const [notes, points] = await Promise.all([
+    notificationsByOrder(client.id, [orderId]),
+    loyaltyPoints(client, [loaded.order.customer_id]),
+  ]);
+  return staffView(loaded.order, loaded.items, [], client, { origin, notifications: notes[orderId], points });
 }
 
 /** Loads an order only if it belongs to the given client. */
@@ -253,7 +257,7 @@ export function siteOrigin(req) {
  * instructions while payment is outstanding. No contact details beyond their
  * first name, no references, notes, staff names or verification records.
  */
-export function customerView(order, items, client) {
+export function customerView(order, items, client, { points = null } = {}) {
   return {
     restaurantName: client.name,
     orderNumber: order.order_number,
@@ -271,11 +275,12 @@ export function customerView(order, items, client) {
     orderStatus: order.order_status,
     paymentInstructions: awaitingPayment(order) ? paymentInstructions(order, client) : null,
     zelleRequest: awaitingPayment(order) ? { status: order.zelle_request_status || null, sentAt: order.zelle_request_sent_at || null } : null,
+    loyalty: points === null ? null : loyaltyView(client, points),
   };
 }
 
 /** Full staff view, including contact details and the verification history. */
-export function staffView(order, items, verifications, client, { origin = '', notifications = [] } = {}) {
+export function staffView(order, items, verifications, client, { origin = '', notifications = [], points = {} } = {}) {
   const statusPath = orderStatusPath(order.id);
   return {
     id: order.id,
@@ -301,6 +306,9 @@ export function staffView(order, items, verifications, client, { origin = '', no
     paidAt: order.paid_at,
     orderStatus: order.order_status,
     zelleRequest: zelleRequestView(order),
+    loyalty: order.customer_id && order.customer_id in points
+      ? { ...loyaltyView(client, points[order.customer_id]), redeemedAt: order.reward_redeemed_at || null, redeemedBy: order.reward_redeemed_by_name || null }
+      : null,
     statusUrl: `${origin}${statusPath}`,
     paymentInstructions: awaitingPayment(order)
       ? paymentInstructions(order, client, { statusUrl: `${origin}${statusPath}` })

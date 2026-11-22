@@ -4,6 +4,7 @@ import { getClient } from '../../server/clients.js';
 import { requireStaff } from '../../server/staff-auth.js';
 import { afterOrderCreated, createOrder, loadStaffOrder, siteOrigin, staffView, validateOrderInput } from '../../server/orders.js';
 import { notificationsByOrder } from '../../server/notify.js';
+import { loyaltyPoints } from '../../server/loyalty.js';
 
 const VIEWS = {
   // Orders still waiting on payment confirmation, oldest first.
@@ -60,10 +61,11 @@ export default handle(async (req, res) => {
   }
 
   const ids = orders.map((o) => o.id);
-  const [{ data: items, error: itemsError }, { data: verifications, error: vError }, notes] = await Promise.all([
+  const [{ data: items, error: itemsError }, { data: verifications, error: vError }, notes, points] = await Promise.all([
     supabase.from('client_order_items').select('order_id, position, name_snapshot, unit_price_cents, quantity, line_total_cents').eq('client_id', client.id).in('order_id', ids).order('position'),
     supabase.from('order_payments').select('*').eq('client_id', client.id).in('order_id', ids).order('verified_at'),
     notificationsByOrder(client.id, ids),
+    loyaltyPoints(client, orders.map((o) => o.customer_id)),
   ]);
   if (itemsError) throw itemsError;
   if (vError) throw vError;
@@ -73,6 +75,6 @@ export default handle(async (req, res) => {
   const verBy = byOrder(verifications);
   sendJson(res, 200, {
     view,
-    orders: orders.map((o) => staffView(o, itemsBy[o.id] || [], verBy[o.id] || [], client, { origin, notifications: notes[o.id] })),
+    orders: orders.map((o) => staffView(o, itemsBy[o.id] || [], verBy[o.id] || [], client, { origin, notifications: notes[o.id], points })),
   });
 });

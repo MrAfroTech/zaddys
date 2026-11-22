@@ -5,6 +5,7 @@ import CartPanel from '../components/order/CartPanel';
 import CustomerFields, { customerPayload, EMPTY_CUSTOMER, validateCustomer } from '../components/order/CustomerFields';
 import NotificationStatus from '../components/order/NotificationStatus';
 import ZelleRequestHelper from '../components/order/ZelleRequestHelper';
+import SalesDashboard from '../components/order/SalesDashboard';
 import PaymentMethodPicker from '../components/order/PaymentMethodPicker';
 import OrderLines from '../components/order/OrderLines';
 import PaymentInstructions from '../components/order/PaymentInstructions';
@@ -23,6 +24,7 @@ const TABS = [
   { id: 'awaiting', label: 'Awaiting payment' },
   { id: 'paid', label: 'Paid & open' },
   { id: 'recent', label: 'Recent' },
+  { id: 'sales', label: 'Sales', roles: ['owner', 'manager'] },
 ];
 
 async function staffRequest(path, options = {}) {
@@ -105,7 +107,7 @@ export default function StaffPage() {
         <>
           <p className="staff-who">Signed in as <strong>{staff.displayName}</strong></p>
           <div className="staff-tabs" role="tablist" aria-label="Staff tools">
-            {TABS.map((t) => (
+            {TABS.filter((t) => !t.roles || t.roles.includes(staff.role)).map((t) => (
               <button
                 key={t.id}
                 type="button"
@@ -127,7 +129,9 @@ export default function StaffPage() {
             </button>
           )}
           <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
-            {tab === 'new' ? <NewOrder /> : <OrderList view={tab} key={tab} onQueueChange={(n) => tab === 'zelle' && setZelleCount(n)} />}
+            {tab === 'new' ? <NewOrder />
+              : tab === 'sales' ? <SalesDashboard request={staffRequest} />
+              : <OrderList view={tab} key={tab} onQueueChange={(n) => tab === 'zelle' && setZelleCount(n)} />}
           </div>
         </>
       )}
@@ -340,6 +344,9 @@ function NewOrder() {
               Returning customer · {returning.orderCount} {returning.orderCount === 1 ? 'order' : 'orders'}. Saved details and
               update choices are filled in — check them with the customer.
               {returning.smsOptedOut && ' They replied STOP to texts, so only tick Text message if they ask to get texts again.'}
+              {returning.loyalty && (returning.loyalty.available > 0
+                ? ` 🎁 They have ${returning.loyalty.reward} ready — redeem it on this order after it’s placed.`
+                : ` Rewards: ${returning.loyalty.progress} of ${returning.loyalty.required} toward ${returning.loyalty.reward}.`)}
             </p>
           )}
           <PaymentMethodPicker methods={menu.methods} value={paymentMethod} onChange={setPaymentMethod} error={errors.paymentMethod} name="staff-payment-method" />
@@ -462,6 +469,19 @@ function StaffOrderCard({ order, onDone }) {
           Zelle request sent {new Date(order.zelleRequest.sentAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
           {order.zelleRequest.sentBy ? ` by ${order.zelleRequest.sentBy}` : ''}.
         </p>
+      )}
+      {order.loyalty?.redeemedAt && (
+        <p className="reward-banner is-done" role="note">
+          🎁 Reward given with this order ({order.loyalty.reward}){order.loyalty.redeemedBy ? ` by ${order.loyalty.redeemedBy}` : ''}.
+        </p>
+      )}
+      {order.loyalty && !order.loyalty.redeemedAt && order.loyalty.available > 0 && order.orderStatus !== 'cancelled' && (
+        <div className="reward-banner" role="note">
+          <span>🎁 This customer has <strong>{order.loyalty.reward}</strong> ready.</span>
+          <button type="button" className="btn btn-primary btn-sm" disabled={busy} onClick={() => action('redeem_reward', null)}>
+            Give reward with this order
+          </button>
+        </div>
       )}
       <OrderLines order={order} />
       <NotificationStatus

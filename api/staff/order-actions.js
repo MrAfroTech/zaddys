@@ -5,8 +5,16 @@ import { requireStaff } from '../../server/staff-auth.js';
 import { isUuid, loadOrder, loadStaffOrder, mapRpcError, notifyOrderChange, requestZelle, siteOrigin } from '../../server/orders.js';
 import { notifyOrder } from '../../server/notify.js';
 
-const ACTIONS = ['manual_review', 'return_to_pending', 'cancel', 'complete', 'resend_messages', 'zelle_request_sent'];
-const MESSAGE_KINDS = ['order_placed', 'payment_confirmed', 'order_cancelled'];
+const ACTIONS = ['manual_review', 'return_to_pending', 'cancel', 'complete', 'resend_messages', 'zelle_request_sent', 'redeem_reward'];
+const MESSAGE_KINDS = ['order_placed', 'payment_confirmed', 'order_cancelled', 'review_request'];
+
+const REWARD_ERRORS = {
+  order_not_found: [404, 'Order not found.'],
+  loyalty_disabled: [409, 'Rewards are not turned on for this restaurant.'],
+  reward_already_redeemed: [409, 'A reward was already redeemed on this order.'],
+  reward_not_available: [409, 'This customer doesn’t have a reward ready yet.'],
+  not_client_staff: [403, 'This account is not authorized for this restaurant.'],
+};
 
 const RPC_ERRORS = {
   order_not_found: [404, 'Order not found.'],
@@ -24,6 +32,8 @@ const RPC_ERRORS = {
  * complete : closes a paid order (handed to the customer)
  * resend_messages : { kind, channel? } re-sends a customer text/email
  * zelle_request_sent : staff sent the Zelle request from the bank app
+ * redeem_reward : the customer's loyalty reward is given with this order
+ * complete also sends the Google review request email (when turned on)
  * Payment status and order status are changed independently; every change is
  * written to order_events with the staff member's identity.
  */
@@ -36,6 +46,18 @@ export default handle(async (req, res) => {
   if (!isUuid(body.orderId)) throw new HttpError(400, 'Invalid order.');
   if (!ACTIONS.includes(body.action)) throw new HttpError(400, 'Unknown action.');
   const reason = typeof body.reason === 'string' ? body.reason.trim().slice(0, 300) : '';
+
+  if (body.action === 'redeem_reward') {
+    const { error } = await serviceClient().rpc('ordering_redeem_reward', {
+      p_client_id: client.id,
+      p_order_id: body.orderId,
+      p_staff: staff.userId,
+      p_staff_name: staff.displayName,
+    });
+    if (error) throw mapRpcError(error, REWARD_ERRORS);
+    sendJson(res, 200, { result: 'ok', order: await loadStaffOrder(body.orderId, client, siteOrigin(req)) });
+    return;
+  }
 
   if (body.action === 'zelle_request_sent') {
     await requestZelle({ client, orderId: body.orderId, action: 'sent', actorType: 'staff', staff });
@@ -73,6 +95,9 @@ export default handle(async (req, res) => {
 
   if (body.action === 'cancel') {
     await notifyOrderChange({ client, orderId: body.orderId, kind: 'order_cancelled', origin: siteOrigin(req) });
+  }
+  if (body.action === 'complete' && client.review_requests_enabled && client.google_review_url) {
+    await notifyOrderChange({ client, orderId: body.orderId, kind: 'review_request', origin: siteOrigin(req) });
   }
   sendJson(res, 200, { result: 'ok' });
 });

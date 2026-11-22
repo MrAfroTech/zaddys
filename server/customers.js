@@ -1,4 +1,5 @@
 import { serviceClient } from './supabase.js';
+import { loyaltyView } from './loyalty.js';
 
 /**
  * US-first phone normalization to E.164: 10 digits -> +1..., 11 digits
@@ -45,7 +46,7 @@ export async function findCustomer(client, rawPhone) {
   if (!phone) return null;
   const { data, error } = await serviceClient()
     .from('client_customers')
-    .select('name, email, notify_sms, notify_email, sms_opted_out_at, order_count, last_order_at')
+    .select('*')
     .eq('client_id', client.id)
     .eq('phone_e164', phone)
     .maybeSingle();
@@ -59,6 +60,7 @@ export async function findCustomer(client, rawPhone) {
     smsOptedOut: Boolean(data.sms_opted_out_at),
     orderCount: data.order_count,
     lastOrderAt: data.last_order_at,
+    loyalty: loyaltyView(client, data.loyalty_points),
   };
 }
 

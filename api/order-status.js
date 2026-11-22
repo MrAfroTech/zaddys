@@ -1,6 +1,7 @@
 import { allowMethods, handle, HttpError, readJson, sendJson } from '../server/http.js';
 import { getClient } from '../server/clients.js';
 import { customerView, loadOrder, requestZelle } from '../server/orders.js';
+import { loyaltyPoints } from '../server/loyalty.js';
 import { verifyOrderStatusRef } from '../server/order-links.js';
 import { enforceRateLimit } from '../server/rate-limit.js';
 
@@ -30,5 +31,8 @@ export default handle(async (req, res) => {
     throw new HttpError(400, 'Unknown action.');
   }
 
-  sendJson(res, 200, { order: customerView(loaded.order, loaded.items, client) });
+  // Loyalty progress for this order's customer (null when off).
+  const points = await loyaltyPoints(client, [loaded.order.customer_id]);
+  const customerPoints = loaded.order.customer_id in points ? points[loaded.order.customer_id] : null;
+  sendJson(res, 200, { order: customerView(loaded.order, loaded.items, client, { points: customerPoints }) });
 });

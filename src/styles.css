@@ -600,3 +600,41 @@ text-shadow:none;filter:drop-shadow(0 1px 1px rgba(10,20,45,.4));}
 @media (max-width:760px){.menu-photos{grid-template-columns:repeat(2,minmax(0,1fr));}}
 
 .featured-img{object-position:center 75%;}
+
+/* Loyalty */
+.loyalty-card{border:2px solid var(--line);border-radius:12px;padding:12px 16px;margin:14px 0;background:#fff;}
+.loyalty-card.is-ready{border-color:#c9a227;background:#fffaf0;}
+.loyalty-title{font-weight:800;letter-spacing:.06em;text-transform:uppercase;font-size:13px;margin:0 0 4px;}
+.loyalty-card p{margin:4px 0;}
+.loyalty-dots{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0;}
+.loyalty-dots span{width:18px;height:18px;border-radius:50%;border:2px solid #2F5D3A;}
+.loyalty-dots span.is-on{background:#2F5D3A;}
+.loyalty-note{font-size:12.5px;opacity:.75;}
+.reward-banner{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin:8px 0;padding:8px 12px;border-radius:8px;background:#fffaf0;border:2px solid #c9a227;font-weight:600;}
+.reward-banner.is-done{border-color:var(--line);background:#f6f6f2;font-weight:500;}
+
+/* Owner sales dashboard */
+.sales-head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px;margin:6px 0 14px;}
+.sales-ranges{display:inline-flex;flex-wrap:wrap;border:2px solid var(--line);border-radius:999px;padding:3px;gap:3px;background:#fff;}
+.pay-switch-btn.is-range{background:#2F5D3A;color:#fff;}
+.sales-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px;}
+.sales-stat{border:1px solid var(--line);border-radius:10px;padding:12px 14px;background:#fff;display:grid;gap:2px;}
+.sales-stat-label{font-size:13px;opacity:.75;}
+.sales-stat-value{font-size:26px;line-height:1.1;}
+.sales-stat-note{font-size:12.5px;opacity:.7;}
+.sales-card{border:1px solid var(--line);border-radius:10px;padding:12px 14px;background:#fff;margin-bottom:12px;}
+.sales-card h3{font-size:16px;margin:0 0 10px;}
+.sales-days{list-style:none;margin:0;padding:0;display:flex;align-items:flex-end;gap:4px;height:160px;overflow-x:auto;}
+.sales-days li{flex:1 0 22px;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;gap:4px;}
+.sales-day-bar{width:100%;max-width:34px;background:#2F5D3A;border-radius:4px 4px 0 0;}
+.sales-day-label{font-size:11px;opacity:.7;white-space:nowrap;}
+.sales-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+@media (max-width:760px){.sales-grid{grid-template-columns:1fr;}}
+.sales-top{margin:0;padding-left:20px;display:grid;gap:6px;}
+.sales-top li span:last-child{float:right;opacity:.75;font-size:14px;}
+.sales-bars{list-style:none;margin:0;padding:0;display:grid;gap:8px;}
+.sales-bars li{display:grid;grid-template-columns:110px 1fr auto;align-items:center;gap:8px;font-size:14px;}
+.sales-bar{height:10px;background:#eee;border-radius:5px;overflow:hidden;}
+.sales-bar span{display:block;height:100%;background:#2F5D3A;}
+.sales-note{font-size:12.5px;opacity:.7;}
+

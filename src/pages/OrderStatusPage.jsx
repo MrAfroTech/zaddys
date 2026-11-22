@@ -60,6 +60,26 @@ export default function OrderStatusPage({ statusRef }) {
             <h1 id="status-title" className="section-title">Order {order.orderNumber}</h1>
             <p className="order-status-thanks">Thanks, {order.customerFirstName}. Keep this page bookmarked to check your order.</p>
             <PaymentStatus status={order.paymentStatus} orderStatus={order.orderStatus} />
+            {order.loyalty && (
+              <div className={`loyalty-card${order.loyalty.available > 0 ? ' is-ready' : ''}`}>
+                <p className="loyalty-title">{restaurant.name} Rewards</p>
+                {order.loyalty.available > 0 ? (
+                  <p>🎁 You’ve earned <strong>{order.loyalty.reward}</strong>! Ask for it at the counter on your next order.</p>
+                ) : (
+                  <>
+                    <p>
+                      {order.loyalty.progress} of {order.loyalty.required} paid orders toward <strong>{order.loyalty.reward}</strong>.
+                    </p>
+                    <div className="loyalty-dots" aria-hidden="true">
+                      {Array.from({ length: order.loyalty.required }, (_, i) => (
+                        <span key={i} className={i < order.loyalty.progress ? 'is-on' : undefined} />
+                      ))}
+                    </div>
+                  </>
+                )}
+                <p className="loyalty-note">Every paid order counts once it’s confirmed. Rewards are tied to your phone number.</p>
+              </div>
+            )}
             {awaiting && (
               <p className="notice">
                 Paid already? Your order stays “awaiting payment confirmation” until our staff find your payment in

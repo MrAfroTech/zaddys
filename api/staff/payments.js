@@ -3,6 +3,7 @@ import { allowMethods, handle, HttpError, readJson, sendJson } from '../../serve
 import { getClient } from '../../server/clients.js';
 import { requireStaff } from '../../server/staff-auth.js';
 import { isUuid, mapRpcError, notifyOrderChange, siteOrigin } from '../../server/orders.js';
+import { countPaidOrder } from '../../server/loyalty.js';
 
 const RPC_ERRORS = {
   order_not_found: [404, 'Order not found.'],
@@ -64,6 +65,8 @@ export default handle(async (req, res) => {
   if (error) throw mapRpcError(error, RPC_ERRORS);
 
   if (data?.result === 'verified') {
+    // Count it toward the customer's reward before the receipt, so it shows the new total.
+    await countPaidOrder(client, body.orderId);
     await notifyOrderChange({ client, orderId: body.orderId, kind: 'payment_confirmed', origin: siteOrigin(req) });
   }
   sendJson(res, 200, { result: data?.result });

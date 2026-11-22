@@ -5,6 +5,10 @@
   "framework": null,
   "rewrites": [
     {
+      "source": "/menu",
+      "destination": "/menu.html"
+    },
+    {
       "source": "/privacy-policy",
       "destination": "/privacy-policy.html"
     },
@@ -22,7 +26,7 @@
     },
     {
       "source": "/((?!api/|images/|assets/).*)",
-      "destination": "/index.html"
+      "destination": "/app.html"
     }
   ]
 }

@@ -43,7 +43,8 @@ export default function SiteFooter() {
           </ul>
         </nav>
       </div>
-      <p className="footer-legal">© {new Date().getFullYear()} {restaurant.fullName} · <a href="/privacy-policy">Privacy Policy</a> · <a href="/terms-of-service">Terms of Service</a></p>
+      <p className="footer-legal">© {new Date().getFullYear()} {restaurant.fullName} · <a href="/privacy-policy">Privacy Policy</a> · <a href="/terms-of-service">Terms of Service</a>
+        <span className="footer-powered"> · Online ordering by <a href="https://www.concier.io/restaurants?ref=zaddys" target="_blank" rel="noopener">Concier.io</a></span></p>
     </footer>
   );
 }
