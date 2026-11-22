@@ -92,7 +92,7 @@ export const seoPages = {
   home: {
     path: '/',
     title: `${restaurant.fullName} | Subs, Phillys & Cubans in Tampa`,
-    description: `${restaurant.fullName} at ${restaurant.address.street}, Tampa, FL. Philly cheesesteaks, Cubans, subs, the Glizzy Deal and salads. Order online for pickup or call ${restaurant.phone}.`,
+    description: `Philly cheesesteaks, Cubans, subs and the Glizzy Deal at ${restaurant.address.street.replace(/ Unit .*/, '')}, Tampa. Order online for pickup.`,
     image: photos.homeSubCombo.src,
     jsonLd: () => restaurantJsonLd(),
   },

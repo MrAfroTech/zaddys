@@ -40,14 +40,10 @@ export const payments = {
   zelleQr: '/images/zelle-qr-zaddys.png',
 };
 
-/**
- * How guests order. No online ordering link is known yet, so ordering is a
- * phone call. TODO(zaddys): set `url` to the online ordering link (and
- * `external: true`) if Zaddys has one.
- */
+/** How guests order: the site's own online ordering (pickup). */
 export const ordering = {
-  url: restaurant.phoneHref,
-  label: 'Call to order',
+  url: '/order',
+  label: 'Order online',
   external: false,
 };
 

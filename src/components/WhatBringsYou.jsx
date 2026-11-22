@@ -1,9 +1,9 @@
-import { ordering, orderLinkProps, restaurant } from '../data/restaurant';
+import { orderLinkProps, restaurant } from '../data/restaurant';
 
 const OPTIONS = [
   { id: 'hungry', emoji: '🥪', title: "I'm hungry", text: 'See the menu.', link: { href: '/menu' } },
   { id: 'deal', emoji: '🌭', title: 'I want a deal', text: 'Glizzy Deal and the Cuban Special.', link: { href: '#deals' } },
-  { id: 'order', emoji: '📞', title: 'Order ahead', text: `${ordering.label}: ${restaurant.phone}.`, link: orderLinkProps },
+  { id: 'order', emoji: '📱', title: 'Order ahead', text: `Order online for pickup, or call ${restaurant.phone}.`, link: orderLinkProps },
   {
     id: 'visit',
     emoji: '📍',
