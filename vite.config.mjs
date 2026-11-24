@@ -2,7 +2,7 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { weeklyHours } from './src/data/hours.js';
 
-const pad = (h) => `${String(h).padStart(2, '0')}:00`;
+const pad = (h) => `${String(Math.floor(h)).padStart(2, '0')}:${String(Math.round((h % 1) * 60)).padStart(2, '0')}`;
 
 /**
  * Builds the Restaurant JSON-LD opening hours from src/data/hours.js so the

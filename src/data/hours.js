@@ -2,12 +2,19 @@
  * Zaddys opening hours — the single source for every place hours appear
  * (Today panel, Visit section, footer, and the JSON-LD in index.html).
  *
- * TODO(zaddys): hours haven't been supplied yet. Until they are, this stays
- * null and the site says "Call for hours" instead of guessing. When known,
- * replace with entries like:
- *   { day: 'Monday', open: 11, close: 20 }   // 24h, restaurant-local; null = closed
- * listed Monday through Sunday.
+ * Entries are 24h, restaurant-local, Monday through Sunday; fractions are
+ * minutes (20.5 = 8:30 PM); open: null = closed that day.
+ * TODO(zaddys): Google lists later Friday/Saturday hours; confirm with the
+ * owner. For now every day is 11 AM – 8:30 PM.
  */
 export const TIMEZONE = 'America/New_York';
 
-export const weeklyHours = null;
+export const weeklyHours = [
+  { day: 'Monday', open: 11, close: 20.5 },
+  { day: 'Tuesday', open: 11, close: 20.5 },
+  { day: 'Wednesday', open: 11, close: 20.5 },
+  { day: 'Thursday', open: 11, close: 20.5 },
+  { day: 'Friday', open: 11, close: 20.5 },
+  { day: 'Saturday', open: 11, close: 20.5 },
+  { day: 'Sunday', open: 11, close: 20.5 },
+];

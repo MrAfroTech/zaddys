@@ -1,21 +1,24 @@
 import { useEffect, useState } from 'react';
 import { ordering, orderLinkProps, restaurant } from '../data/restaurant';
 import { featuredItems } from '../data/featured';
-import { openStatus } from '../utils/hours';
+import { groupedHoursRows, hoursKnown, openStatus } from '../utils/hours';
 
 /**
  * "Today" panel built only from published facts. Until Zaddys' hours are
  * entered in src/data/hours.js it says to call for hours rather than guess.
  */
 export default function TodayAtZaddys() {
-  const [now, setNow] = useState(() => new Date());
+  // The live "open now" status is worked out in the browser only, so the
+  // pre-rendered page (what search engines read) never shows a stale one.
+  const [now, setNow] = useState(null);
 
   useEffect(() => {
+    setNow(new Date());
     const id = window.setInterval(() => setNow(new Date()), 60_000);
     return () => window.clearInterval(id);
   }, []);
 
-  const status = openStatus(now);
+  const status = now ? openStatus(now) : null;
   const featured = featuredItems.map((d) => d.name).join(', ');
 
   return (
@@ -30,6 +33,8 @@ export default function TodayAtZaddys() {
           {status.detail && <p className="today-detail">{status.detail}</p>}
           <p className="today-hours">{status.dayName}: {status.todayHours}</p>
         </>
+      ) : hoursKnown ? (
+        groupedHoursRows().map((h) => <p key={h.days} className="today-hours">{h.days}: {h.time}</p>)
       ) : (
         <>
           <p className="today-status">Call for today's hours</p>

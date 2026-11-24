@@ -11,7 +11,7 @@ import { photos } from './photos';
 const SITE = restaurant.siteUrl;
 const abs = (path) => `${SITE}${path}`;
 const dollars = (cents) => (cents / 100).toFixed(2);
-const pad = (h) => `${String(h).padStart(2, '0')}:00`;
+const pad = (h) => `${String(Math.floor(h)).padStart(2, '0')}:${String(Math.round((h % 1) * 60)).padStart(2, '0')}`;
 
 function openingHours() {
   if (!Array.isArray(weeklyHours)) return undefined;
